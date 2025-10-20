@@ -163,6 +163,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
@@ -175,6 +176,7 @@ import { useMembersStore } from '@/stores/members'
 import type { Member } from '@/types'
 
 const membersStore = useMembersStore()
+const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -194,8 +196,7 @@ const createMember = () => {
 }
 
 const viewMember = (member: Member) => {
-  // TODO: Navigate to member detail view
-  console.log('Member anzeigen:', member.name)
+  router.push(`/members/${member.member_id}`)
 }
 
 const editMember = (member: Member) => {
