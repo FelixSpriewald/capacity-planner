@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { Sprint, SprintFilter, SortOption, AvailabilityResponse } from '@/types'
+import type { Sprint, SprintFilter, SortOption, AvailabilityResponse, SprintRoster } from '@/types'
 import { apiClient } from '@/services/api'
 
 export const useSprintsStore = defineStore('sprints', () => {
@@ -8,7 +8,9 @@ export const useSprintsStore = defineStore('sprints', () => {
   const sprints = ref<Sprint[]>([])
   const selectedSprint = ref<Sprint | null>(null)
   const availability = ref<AvailabilityResponse | null>(null)
+  const roster = ref<SprintRoster[]>([])
   const loading = ref(false)
+  const rosterLoading = ref(false)
   const error = ref<string | null>(null)
 
   // Filters and sorting
@@ -73,7 +75,10 @@ export const useSprintsStore = defineStore('sprints', () => {
     try {
       loading.value = true
       error.value = null
-      sprints.value = await apiClient.getSprints()
+      console.log('Store: fetching sprints from API...')
+      const fetchedSprints = await apiClient.getSprints()
+      console.log('Store: received sprints from API:', fetchedSprints)
+      sprints.value = fetchedSprints
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch sprints'
       console.error('Failed to fetch sprints:', err)
@@ -118,15 +123,20 @@ export const useSprintsStore = defineStore('sprints', () => {
     try {
       loading.value = true
       error.value = null
+      console.log('Store: updating sprint', id, 'with data:', sprintData)
       const updatedSprint = await apiClient.updateSprint(id, sprintData)
+      console.log('Store: received updated sprint from API:', updatedSprint)
 
       const index = sprints.value.findIndex((s) => s.sprint_id === id)
+      console.log('Store: found sprint at index:', index, 'in list of', sprints.value.length, 'sprints')
       if (index !== -1) {
         sprints.value[index] = updatedSprint
+        console.log('Store: updated sprint in list')
       }
 
       if (selectedSprint.value?.sprint_id === id) {
         selectedSprint.value = updatedSprint
+        console.log('Store: updated selected sprint')
       }
 
       return updatedSprint
@@ -213,6 +223,88 @@ export const useSprintsStore = defineStore('sprints', () => {
     error.value = null
   }
 
+  async function fetchRoster(sprintId: number) {
+    try {
+      rosterLoading.value = true
+      error.value = null
+      roster.value = await apiClient.getSprintRoster(sprintId)
+      return roster.value
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch roster'
+      console.error('Failed to fetch roster:', err)
+      throw err
+    } finally {
+      rosterLoading.value = false
+    }
+  }
+
+  async function addMemberToRoster(
+    sprintId: number, 
+    memberData: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string }
+  ) {
+    try {
+      rosterLoading.value = true
+      error.value = null
+      await apiClient.addMemberToRoster(sprintId, memberData)
+      // Refresh roster
+      await fetchRoster(sprintId)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to add member to roster'
+      console.error('Failed to add member to roster:', err)
+      throw err
+    } finally {
+      rosterLoading.value = false
+    }
+  }
+
+  async function updateRosterMember(
+    sprintId: number,
+    memberData: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string }
+  ) {
+    try {
+      rosterLoading.value = true
+      error.value = null
+      await apiClient.updateSprintRoster(sprintId, memberData.member_id, {
+        allocation: memberData.allocation,
+        assignment_from: memberData.assignment_from,
+        assignment_to: memberData.assignment_to
+      })
+      // Refresh roster
+      await fetchRoster(sprintId)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update roster member'
+      console.error('Failed to update roster member:', err)
+      throw err
+    } finally {
+      rosterLoading.value = false
+    }
+  }
+
+  async function removeMemberFromRoster(sprintId: number, memberId: number) {
+    try {
+      if (rosterLoading.value) {
+        console.log('Roster operation already in progress, skipping...')
+        return
+      }
+      
+      rosterLoading.value = true
+      error.value = null
+      await apiClient.removeMemberFromRoster(sprintId, memberId)
+      // Refresh roster
+      await fetchRoster(sprintId)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to remove member from roster'
+      console.error('Failed to remove member from roster:', err)
+      throw err
+    } finally {
+      rosterLoading.value = false
+    }
+  }
+
+  function clearRoster() {
+    roster.value = []
+  }
+
   function clearAvailability() {
     availability.value = null
   }
@@ -222,7 +314,9 @@ export const useSprintsStore = defineStore('sprints', () => {
     sprints,
     selectedSprint,
     availability,
+    roster,
     loading,
+    rosterLoading,
     error,
     filter,
     sortOptions,
@@ -243,10 +337,15 @@ export const useSprintsStore = defineStore('sprints', () => {
     deleteSprint,
     fetchAvailability,
     updateAvailabilityOverride,
+    fetchRoster,
+    addMemberToRoster,
+    updateRosterMember,
+    removeMemberFromRoster,
     selectSprint,
     setFilter,
     setSorting,
     clearError,
     clearAvailability,
+    clearRoster,
   }
 })

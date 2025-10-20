@@ -34,7 +34,7 @@
           </div>
 
           <div v-else class="members-grid">
-            <div v-for="member in members" :key="member.member_id" class="member-card" :class="{ 'inactive-member': !member.active }">
+            <div v-for="member in members" :key="member.member_id" class="member-card">
               <div class="member-header">
                 <div class="member-avatar">
                   <i class="pi pi-user"></i>
@@ -54,12 +54,7 @@
                 </div>
               </div>
 
-              <div class="member-status">
-                <Tag
-                  :value="member.active ? 'Aktiv' : 'Inaktiv'"
-                  :severity="member.active ? 'success' : 'secondary'"
-                />
-              </div>
+
 
               <div class="member-actions">
                 <Button
@@ -73,20 +68,6 @@
                   class="p-button-text p-button-sm"
                   @click="editMember(member)"
                   v-tooltip="'Member bearbeiten'"
-                />
-                <Button
-                  v-if="!member.active"
-                  icon="pi pi-check"
-                  class="p-button-text p-button-sm p-button-success"
-                  @click="confirmReactivateMember(member)"
-                  v-tooltip="'Member reaktivieren'"
-                />
-                <Button
-                  v-if="member.active"
-                  icon="pi pi-calendar"
-                  class="p-button-text p-button-sm"
-                  @click="managePTO(member)"
-                  v-tooltip="'PTO verwalten'"
                 />
                 <Button
                   icon="pi pi-trash"
@@ -168,7 +149,6 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import ConfirmDialog from 'primevue/confirmdialog'
 import MemberForm from '@/components/forms/MemberForm.vue'
@@ -204,10 +184,6 @@ const editMember = (member: Member) => {
   showMemberDialog.value = true
 }
 
-const managePTO = (member: Member) => {
-  // TODO: Navigate to PTO management
-  console.log('PTO verwalten für:', member.name)
-}
 
 const confirmDeleteMember = (member: Member) => {
   confirm.require({
@@ -248,57 +224,21 @@ const deleteMember = async (member: Member) => {
   }
 }
 
-const confirmReactivateMember = (member: Member) => {
-  confirm.require({
-    message: `Möchten Sie das Member "${member.name}" wieder aktivieren?`,
-    header: 'Member reaktivieren',
-    icon: 'pi pi-check-circle',
-    rejectProps: {
-      label: 'Abbrechen',
-      severity: 'secondary',
-      outlined: true
-    },
-    acceptProps: {
-      label: 'Reaktivieren',
-      severity: 'success'
-    },
-    accept: () => {
-      reactivateMember(member)
-    }
-  })
-}
-
-const reactivateMember = async (member: Member) => {
-  try {
-    await membersStore.reactivateMember(member.member_id)
-    toast.add({
-      severity: 'success',
-      summary: 'Erfolgreich',
-      detail: `Member "${member.name}" wurde reaktiviert`,
-      life: 3000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: error instanceof Error ? error.message : 'Fehler beim Reaktivieren des Members',
-      life: 5000
-    })
-  }
-}
 
 const handleMemberSubmit = async (memberData: {
   name: string
   employment_ratio: number
   region_code: string
-  active: boolean
 }) => {
   try {
     dialogLoading.value = true
 
     if (selectedMemberForEdit.value) {
-      // Edit existing member
-      await membersStore.updateMember(selectedMemberForEdit.value.member_id, memberData)
+      // Edit existing member (preserve active status)
+      await membersStore.updateMember(selectedMemberForEdit.value.member_id, {
+        ...memberData,
+        active: selectedMemberForEdit.value.active
+      })
       toast.add({
         severity: 'success',
         summary: 'Erfolgreich',
@@ -306,8 +246,11 @@ const handleMemberSubmit = async (memberData: {
         life: 3000
       })
     } else {
-      // Create new member
-      await membersStore.createMember(memberData)
+      // Create new member (automatically set as active)
+      await membersStore.createMember({
+        ...memberData,
+        active: true
+      })
       toast.add({
         severity: 'success',
         summary: 'Erfolgreich',
@@ -408,17 +351,6 @@ onMounted(async () => {
   border-color: #3498db;
   box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
   transform: translateY(-2px);
-}
-
-.member-card.inactive-member {
-  opacity: 0.7;
-  border-color: #bdc3c7;
-  background: #f8f9fa;
-}
-
-.member-card.inactive-member:hover {
-  border-color: #95a5a6;
-  box-shadow: 0 2px 8px rgba(149, 165, 166, 0.15);
 }
 
 .member-header {

@@ -53,16 +53,16 @@
                 </div>
                 <div class="sprint-actions">
                   <Button
-                    icon="pi pi-eye"
-                    class="p-button-text p-button-sm"
-                    @click.stop="viewSprint(sprint)"
-                    v-tooltip="'Sprint anzeigen'"
-                  />
-                  <Button
                     icon="pi pi-pencil"
                     class="p-button-text p-button-sm"
                     @click.stop="editSprint(sprint)"
                     v-tooltip="'Sprint bearbeiten'"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    class="p-button-text p-button-sm p-button-danger"
+                    @click.stop="confirmDeleteSprint(sprint)"
+                    v-tooltip="'Sprint löschen'"
                   />
                 </div>
               </div>
@@ -119,50 +119,300 @@
         </Card>
       </div>
     </div>
+
+    <!-- Sprint Form Dialog -->
+    <SprintForm
+      v-model:visible="showSprintForm"
+      :sprint="editingSprint"
+      :loading="formLoading"
+      @submit="handleSprintSubmit"
+    />
+
+    <!-- Team Roster Dialog -->
+    <TeamRosterDialog
+      v-model:visible="showRosterDialog"
+      :sprint="selectedSprint"
+      :roster="roster"
+      :members="members"
+      :loading="rosterLoading"
+      @add-member="handleAddMember"
+      @update-member="handleUpdateMember"
+      @remove-member="handleRemoveMember"
+    />
+
+    <!-- Confirm Dialog -->
+    <ConfirmDialog />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
+import ConfirmDialog from 'primevue/confirmdialog'
+import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
+import { useSprintsStore } from '@/stores/sprints'
+import { useMembersStore } from '@/stores/members'
+import SprintForm from '@/components/forms/SprintForm.vue'
+import TeamRosterDialog from '@/components/dialogs/TeamRosterDialog.vue'
+import type { Sprint, SprintStatus } from '@/types'
 
-interface Sprint {
-  sprint_id: number
-  name: string
-  start_date: string
-  end_date: string
-  status: 'draft' | 'active' | 'completed'
-}
+// Store und Services
+const sprintsStore = useSprintsStore()
+const membersStore = useMembersStore()
+const toast = useToast()
+const confirm = useConfirm()
 
-const loading = ref(true)
-const sprints = ref<Sprint[]>([])
-const selectedSprint = ref<Sprint | null>(null)
+// Reactive state
+const { sprints, selectedSprint, loading, roster, rosterLoading } = storeToRefs(sprintsStore)
+const { members } = storeToRefs(membersStore)
+const showSprintForm = ref(false)
+const showRosterDialog = ref(false)
+const editingSprint = ref<Sprint | null>(null)
+const formLoading = ref(false)
 
 const createSprint = () => {
-  console.log('Neuer Sprint erstellen...')
+  editingSprint.value = null
+  showSprintForm.value = true
 }
 
 const selectSprint = (sprint: Sprint) => {
-  selectedSprint.value = sprint
+  // Select the sprint to show details
+  sprintsStore.selectSprint(sprint)
+  
+  // Scroll to sprint details with smooth animation
+  const detailsElement = document.querySelector('.sprint-details')
+  if (detailsElement) {
+    detailsElement.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start' 
+    })
+  }
+  
+  // Show success toast
+  toast.add({
+    severity: 'info',
+    summary: 'Sprint Details',
+    detail: `Zeige Details für "${sprint.name}"`,
+    life: 2000
+  })
 }
 
-const viewSprint = (sprint: Sprint) => {
-  console.log('Sprint anzeigen:', sprint.name)
+// Types
+interface SprintFormData {
+  name: string
+  start_date: string
+  end_date: string
+  status?: SprintStatus
 }
+
+const handleSprintSubmit = async (formData: SprintFormData) => {
+  try {
+    formLoading.value = true
+    
+    if (editingSprint.value) {
+      // Update existing sprint
+      console.log('Updating sprint:', editingSprint.value.sprint_id, 'with data:', formData)
+      const updatedSprint = await sprintsStore.updateSprint(editingSprint.value.sprint_id, formData)
+      console.log('Sprint updated successfully:', updatedSprint)
+      
+      // Refresh the sprint list to ensure UI is in sync
+      await sprintsStore.fetchSprints()
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Erfolg',
+        detail: 'Sprint wurde erfolgreich aktualisiert',
+        life: 3000
+      })
+    } else {
+      // Create new sprint - ensure status is set
+      const sprintData = {
+        ...formData,
+        status: (formData.status || 'draft') as SprintStatus
+      }
+      console.log('Creating new sprint with data:', sprintData)
+      const newSprint = await sprintsStore.createSprint(sprintData)
+      console.log('Sprint created successfully:', newSprint)
+      
+      // Refresh the sprint list to ensure UI is in sync
+      await sprintsStore.fetchSprints()
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Erfolg',
+        detail: `Sprint "${newSprint.name}" wurde erfolgreich erstellt`,
+        life: 3000
+      })
+    }
+    
+    showSprintForm.value = false
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err instanceof Error ? err.message : 'Fehler beim Speichern des Sprints',
+      life: 5000
+    })
+  } finally {
+    formLoading.value = false
+  }
+}
+
+
 
 const editSprint = (sprint: Sprint) => {
-  console.log('Sprint bearbeiten:', sprint.name)
+  editingSprint.value = sprint
+  showSprintForm.value = true
+}
+
+const confirmDeleteSprint = (sprint: Sprint) => {
+  confirm.require({
+    message: `Möchten Sie den Sprint "${sprint.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+    header: 'Sprint löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Abbrechen',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Löschen',
+    accept: () => {
+      deleteSprint(sprint)
+    }
+  })
+}
+
+const deleteSprint = async (sprint: Sprint) => {
+  try {
+    await sprintsStore.deleteSprint(sprint.sprint_id)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: `Sprint "${sprint.name}" wurde erfolgreich gelöscht`,
+      life: 3000
+    })
+    
+    // Refresh sprint list
+    await sprintsStore.fetchSprints()
+    
+    // Auto-select first sprint if available
+    if (sprints.value.length > 0) {
+      sprintsStore.selectSprint(sprints.value[0]!)
+    }
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err instanceof Error ? err.message : 'Fehler beim Löschen des Sprints',
+      life: 5000
+    })
+  }
+}
+
+// Roster Event Handlers
+const handleAddMember = async (memberData: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string }) => {
+  if (!selectedSprint.value) return
+
+  try {
+    await sprintsStore.addMemberToRoster(selectedSprint.value.sprint_id, memberData)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Member wurde erfolgreich hinzugefügt',
+      life: 3000
+    })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err instanceof Error ? err.message : 'Fehler beim Hinzufügen des Members',
+      life: 5000
+    })
+  }
+}
+
+const handleUpdateMember = async (memberData: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string }) => {
+  if (!selectedSprint.value) return
+
+  try {
+    await sprintsStore.updateRosterMember(selectedSprint.value.sprint_id, memberData)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Member wurde erfolgreich aktualisiert',
+      life: 3000
+    })
+  } catch (err) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: err instanceof Error ? err.message : 'Fehler beim Aktualisieren des Members',
+      life: 5000
+    })
+  }
+}
+
+const handleRemoveMember = async (memberId: number) => {
+  if (!selectedSprint.value || rosterLoading.value) return
+
+  try {
+    await sprintsStore.removeMemberFromRoster(selectedSprint.value.sprint_id, memberId)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Member wurde erfolgreich entfernt',
+      life: 3000
+    })
+  } catch (error) {
+    console.error('Failed to remove member:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: error instanceof Error ? error.message : 'Fehler beim Entfernen des Members',
+      life: 5000
+    })
+  }
 }
 
 const showAvailability = () => {
   console.log('Availability Grid anzeigen für Sprint:', selectedSprint.value?.name)
 }
 
-const showRoster = () => {
-  console.log('Team Roster anzeigen für Sprint:', selectedSprint.value?.name)
+const showRoster = async () => {
+  if (!selectedSprint.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Kein Sprint ausgewählt',
+      detail: 'Bitte wählen Sie zuerst einen Sprint aus',
+      life: 3000
+    })
+    return
+  }
+
+  try {
+    // Load members and roster data
+    await Promise.all([
+      membersStore.fetchMembers(),
+      sprintsStore.fetchRoster(selectedSprint.value.sprint_id)
+    ])
+    
+    showRosterDialog.value = true
+  } catch (error) {
+    console.error('Failed to load roster data:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Fehler beim Laden der Roster-Daten',
+      life: 5000
+    })
+  }
 }
 
 const getStatusSeverity = (status: string) => {
@@ -195,25 +445,26 @@ const calculateWorkingDays = (startDate: string, endDate: string) => {
   return weekDays
 }
 
+// Load sprints on mount
 onMounted(async () => {
-  // Simuliere API-Call
-  setTimeout(() => {
-    sprints.value = [
-      {
-        sprint_id: 1,
-        name: 'Sprint W43-44 2025',
-        start_date: '2025-10-21',
-        end_date: '2025-11-01',
-        status: 'draft',
-      },
-    ]
-    loading.value = false
-
+  try {
+    console.log('SprintsView: Loading sprints on mount...')
+    await sprintsStore.fetchSprints()
+    
     // Auto-select first sprint
     if (sprints.value.length > 0) {
-      selectedSprint.value = sprints.value[0]!
+      sprintsStore.selectSprint(sprints.value[0]!)
     }
-  }, 1000)
+    console.log('SprintsView: Sprints loaded successfully:', sprints.value)
+  } catch (err) {
+    console.error('SprintsView: Failed to load sprints:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Fehler beim Laden der Sprints',
+      life: 5000
+    })
+  }
 })
 </script>
 

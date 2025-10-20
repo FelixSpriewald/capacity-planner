@@ -57,17 +57,7 @@
         <small class="form-help">Bestimmt Feiertage und Zeitzonen</small>
       </div>
 
-      <div class="form-field">
-        <div class="form-checkbox">
-          <Checkbox
-            id="active"
-            v-model="form.active"
-            :binary="true"
-          />
-          <label for="active" class="checkbox-label">Member ist aktiv</label>
-        </div>
-        <small class="form-help">Inaktive Members erscheinen nicht in Sprint-Auswahlen</small>
-      </div>
+
 
       <div class="form-actions">
         <Button
@@ -94,7 +84,6 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Dropdown from 'primevue/dropdown'
-import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 import type { Member } from '@/types'
 
@@ -102,7 +91,6 @@ interface MemberForm {
   name: string
   employment_ratio: number
   region_code: string
-  active: boolean
 }
 
 interface Props {
@@ -127,8 +115,7 @@ const emit = defineEmits<Emits>()
 const form = ref<MemberForm>({
   name: '',
   employment_ratio: 1,
-  region_code: '',
-  active: true
+  region_code: ''
 })
 
 const errors = ref<Partial<Record<keyof MemberForm, string>>>({})
@@ -190,8 +177,7 @@ function resetForm() {
   form.value = {
     name: '',
     employment_ratio: 1,
-    region_code: '',
-    active: true
+    region_code: ''
   }
   errors.value = {}
 }
@@ -201,8 +187,7 @@ function loadMemberData() {
     form.value = {
       name: props.member.name,
       employment_ratio: props.member.employment_ratio,
-      region_code: props.member.region_code,
-      active: props.member.active
+      region_code: props.member.region_code
     }
   } else {
     resetForm()

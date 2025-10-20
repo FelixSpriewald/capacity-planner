@@ -86,10 +86,13 @@ class ApiClient {
   }
 
   async updateSprint(id: number, sprint: Partial<Sprint>): Promise<Sprint> {
-    return this.request<Sprint>(`/api/v1/sprints/${id}`, {
-      method: 'PUT',
+    console.log('API: updating sprint', id, 'with data:', sprint)
+    const result = await this.request<Sprint>(`/api/v1/sprints/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(sprint),
     })
+    console.log('API: update response:', result)
+    return result
   }
 
   async deleteSprint(id: number): Promise<void> {
@@ -120,6 +123,16 @@ class ApiClient {
     return this.request<SprintRoster[]>(`/api/v1/sprints/${sprintId}/roster`)
   }
 
+  async addMemberToRoster(
+    sprintId: number,
+    data: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string },
+  ): Promise<SprintRoster> {
+    return this.request<SprintRoster>(`/api/v1/sprints/${sprintId}/roster`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
   async updateSprintRoster(
     sprintId: number,
     memberId: number,
@@ -128,6 +141,12 @@ class ApiClient {
     return this.request<void>(`/api/v1/sprints/${sprintId}/roster/${memberId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  }
+
+  async removeMemberFromRoster(sprintId: number, memberId: number): Promise<void> {
+    return this.request<void>(`/api/v1/sprints/${sprintId}/roster/${memberId}`, {
+      method: 'DELETE',
     })
   }
 }

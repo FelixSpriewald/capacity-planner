@@ -38,11 +38,6 @@
           <div class="member-details">
             <div class="member-title">
               <h1 class="member-name">{{ member.name }}</h1>
-              <Tag
-                :value="member.active ? 'Aktiv' : 'Inaktiv'"
-                :severity="member.active ? 'success' : 'secondary'"
-                class="member-status-tag"
-              />
             </div>
             <div class="member-subtitle">
               <div class="detail-item">
@@ -66,20 +61,6 @@
             label="Bearbeiten"
             icon="pi pi-pencil"
             @click="editMember"
-            class="p-button-outlined"
-          />
-          <Button
-            v-if="!member.active"
-            label="Reaktivieren"
-            icon="pi pi-check"
-            @click="confirmReactivateMember"
-            severity="success"
-          />
-          <Button
-            v-if="member.active"
-            label="PTO verwalten"
-            icon="pi pi-calendar"
-            @click="managePTO"
             class="p-button-outlined"
           />
           <Button
@@ -202,7 +183,6 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
-import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
 import ConfirmDialog from 'primevue/confirmdialog'
 import MemberForm from '@/components/forms/MemberForm.vue'
@@ -277,15 +257,6 @@ const editMember = () => {
   showMemberDialog.value = true
 }
 
-const managePTO = () => {
-  // TODO: Navigate to PTO management
-  toast.add({
-    severity: 'info',
-    summary: 'Coming Soon',
-    detail: 'PTO-Verwaltung wird in Kürze verfügbar sein',
-    life: 3000
-  })
-}
 
 const confirmDeleteMember = () => {
   if (!member.value) return
@@ -332,61 +303,20 @@ const deleteMember = async () => {
   }
 }
 
-const confirmReactivateMember = () => {
-  if (!member.value) return
-
-  confirm.require({
-    message: `Möchten Sie das Member "${member.value.name}" wieder aktivieren?`,
-    header: 'Member reaktivieren',
-    icon: 'pi pi-check-circle',
-    rejectProps: {
-      label: 'Abbrechen',
-      severity: 'secondary',
-      outlined: true
-    },
-    acceptProps: {
-      label: 'Reaktivieren',
-      severity: 'success'
-    },
-    accept: () => {
-      reactivateMember()
-    }
-  })
-}
-
-const reactivateMember = async () => {
-  if (!member.value) return
-
-  try {
-    const updated = await membersStore.reactivateMember(member.value.member_id)
-    member.value = updated
-    toast.add({
-      severity: 'success',
-      summary: 'Erfolgreich',
-      detail: `Member "${member.value.name}" wurde reaktiviert`,
-      life: 3000
-    })
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Fehler',
-      detail: error instanceof Error ? error.message : 'Fehler beim Reaktivieren des Members',
-      life: 5000
-    })
-  }
-}
 
 const handleMemberSubmit = async (memberData: {
   name: string
   employment_ratio: number
   region_code: string
-  active: boolean
 }) => {
   if (!member.value) return
 
   try {
     dialogLoading.value = true
-    const updated = await membersStore.updateMember(member.value.member_id, memberData)
+    const updated = await membersStore.updateMember(member.value.member_id, {
+      ...memberData,
+      active: true // Always keep as active when updating
+    })
     member.value = updated
     toast.add({
       severity: 'success',

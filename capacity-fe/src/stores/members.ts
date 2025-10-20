@@ -74,7 +74,7 @@ export const useMembersStore = defineStore('members', () => {
   }))
 
   // Actions
-  async function fetchMembers(includeInactive: boolean = true) {
+  async function fetchMembers(includeInactive: boolean = false) {
     try {
       loading.value = true
       error.value = null
@@ -174,20 +174,8 @@ export const useMembersStore = defineStore('members', () => {
 
       await apiClient.deleteMember(id)
 
-      // Update the member as inactive instead of removing from list
-      const memberIndex = members.value.findIndex((m) => m.member_id === id)
-      if (memberIndex !== -1) {
-        const currentMember = members.value[memberIndex]
-        if (currentMember) {
-          members.value[memberIndex] = {
-            member_id: currentMember.member_id,
-            name: currentMember.name,
-            employment_ratio: currentMember.employment_ratio,
-            region_code: currentMember.region_code,
-            active: false
-          }
-        }
-      }
+      // Remove member from list (backend marks as inactive)
+      members.value = members.value.filter((m) => m.member_id !== id)
 
       if (selectedMember.value?.member_id === id) {
         selectedMember.value = null
@@ -211,15 +199,6 @@ export const useMembersStore = defineStore('members', () => {
 
   function setSorting(field: string, direction: 'asc' | 'desc') {
     sortOptions.value = { field, direction }
-  }
-
-  async function reactivateMember(id: number) {
-    const member = members.value.find(m => m.member_id === id)
-    if (!member) {
-      throw new Error('Member nicht gefunden')
-    }
-
-    return updateMember(id, { active: true })
   }
 
   function clearError() {
@@ -247,7 +226,6 @@ export const useMembersStore = defineStore('members', () => {
     createMember,
     updateMember,
     deleteMember,
-    reactivateMember,
     selectMember,
     setFilter,
     setSorting,
