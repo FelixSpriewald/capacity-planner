@@ -14,7 +14,6 @@
         :key="item.route"
         :to="item.route"
         class="nav-item"
-        :class="{ 'router-link-active': $route.path === item.route }"
       >
         <i :class="`pi ${item.icon}`"></i>
         <span>{{ item.label }}</span>
@@ -65,6 +64,11 @@ const navigationItems = computed<NavigationItem[]>(() => [
     icon: 'pi-calendar',
     route: '/sprints',
     badge: sprintsStore.stats.active.toString(),
+  },
+  {
+    label: 'Demo',
+    icon: 'pi-star',
+    route: '/demo',
   },
 ])
 
