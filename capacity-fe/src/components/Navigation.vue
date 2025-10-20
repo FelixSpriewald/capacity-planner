@@ -39,13 +39,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import Button from 'primevue/button'
 import Badge from 'primevue/badge'
 import type { NavigationItem } from '@/types'
 import { useSprintsStore, useMembersStore } from '@/stores'
+
 const sprintsStore = useSprintsStore()
 const membersStore = useMembersStore()
+
+// Initialize data for badge counts
+onMounted(async () => {
+  try {
+    // Load sprints and members to show badge counts
+    if (sprintsStore.sprints.length === 0) {
+      await sprintsStore.fetchSprints()
+    }
+    if (membersStore.members.length === 0) {
+      await membersStore.fetchMembers()
+    }
+  } catch (error) {
+    console.error('Failed to load navigation data:', error)
+  }
+})
 
 const navigationItems = computed<NavigationItem[]>(() => [
   {
