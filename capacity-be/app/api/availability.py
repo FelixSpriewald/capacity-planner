@@ -26,10 +26,10 @@ def get_sprint_availability(sprint_id: int, db: Session = Depends(get_db)):
     """Availability-Matrix für einen Sprint abrufen"""
     service = AvailabilityService(db)
     availability = service.get_sprint_availability(sprint_id)
-    
+
     if not availability:
         raise HTTPException(status_code=404, detail=SPRINT_NOT_FOUND)
-    
+
     return availability
 
 
@@ -96,21 +96,21 @@ def patch_sprint_availability_bulk(
     """Bulk-Update für mehrere Availability-Overrides"""
     service = AvailabilityService(db)
     validator = ValidationService(db)
-    
+
     try:
         availability = service.get_sprint_availability(sprint_id)
         if not availability:
             raise HTTPException(status_code=404, detail=SPRINT_NOT_FOUND)
-        
+
         results = []
         errors = []
-        
+
         for i, override_data in enumerate(overrides_data):
             try:
                 # Validierungen für jeden Eintrag
                 validator.validate_availability_override_date(sprint_id, override_data.day)
                 validator.validate_member_in_roster(sprint_id, override_data.member_id)
-                
+
                 # Override setzen
                 success = service.set_availability_override(
                     sprint_id=sprint_id,
@@ -119,17 +119,17 @@ def patch_sprint_availability_bulk(
                     state=override_data.state,
                     reason=override_data.reason
                 )
-                
+
                 if success:
                     results.append(f"Item {i}: Updated successfully")
                 else:
                     errors.append(f"Item {i}: Failed to update")
-                    
+
             except ValidationError as e:
                 errors.append(f"Item {i}: {e.message}")
             except Exception as e:
                 errors.append(f"Item {i}: {str(e)}")
-        
+
         return {
             "message": f"Processed {len(overrides_data)} items",
             "success_count": len(results),
@@ -137,7 +137,7 @@ def patch_sprint_availability_bulk(
             "results": results,
             "errors": errors
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:

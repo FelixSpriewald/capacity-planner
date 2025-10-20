@@ -35,11 +35,11 @@ def get_sprint_by_id(sprint_id: int, db: Session = Depends(get_db)):
 def create_new_sprint(sprint: SprintCreate, db: Session = Depends(get_db)):
     """Neuen Sprint erstellen (Status: DRAFT)"""
     validator = ValidationService(db)
-    
+
     try:
         # Erweiterte Validierung
         validator.validate_sprint_dates(sprint.start_date, sprint.end_date)
-        
+
         return create_sprint(db, sprint=sprint)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
@@ -49,7 +49,7 @@ def create_new_sprint(sprint: SprintCreate, db: Session = Depends(get_db)):
 def update_sprint_by_id(sprint_id: int, sprint_update: SprintUpdate, db: Session = Depends(get_db)):
     """Sprint aktualisieren (inkl. Status-Wechsel)"""
     validator = ValidationService(db)
-    
+
     try:
         # Validierung für Date-Updates
         if sprint_update.start_date or sprint_update.end_date:
@@ -57,17 +57,17 @@ def update_sprint_by_id(sprint_id: int, sprint_update: SprintUpdate, db: Session
             current_sprint = get_sprint(db, sprint_id)
             if not current_sprint:
                 raise HTTPException(status_code=404, detail=SPRINT_NOT_FOUND)
-            
+
             start_date = sprint_update.start_date or current_sprint.start_date
             end_date = sprint_update.end_date or current_sprint.end_date
-            
+
             validator.validate_sprint_dates(start_date, end_date)
-        
+
         sprint = update_sprint(db, sprint_id=sprint_id, sprint_update=sprint_update)
         if not sprint:
             raise HTTPException(status_code=404, detail=SPRINT_NOT_FOUND)
         return sprint
-        
+
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
     except HTTPException:

@@ -35,11 +35,11 @@ def get_member_by_id(member_id: int, db: Session = Depends(get_db)):
 def create_new_member(member: MemberCreate, db: Session = Depends(get_db)):
     """Neuen Member erstellen"""
     validator = ValidationService(db)
-    
+
     try:
         # Erweiterte Validierung
         validator.validate_employment_ratio(float(member.employment_ratio))
-        
+
         return create_member(db, member=member)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
@@ -51,16 +51,16 @@ def create_new_member(member: MemberCreate, db: Session = Depends(get_db)):
 def update_member_by_id(member_id: int, member_update: MemberCreate, db: Session = Depends(get_db)):
     """Member aktualisieren"""
     validator = ValidationService(db)
-    
+
     try:
         # Erweiterte Validierung
         validator.validate_employment_ratio(float(member_update.employment_ratio))
-        
+
         member = update_member(db, member_id=member_id, member_update=member_update.model_dump())
         if not member:
             raise HTTPException(status_code=404, detail=MEMBER_NOT_FOUND)
         return member
-        
+
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.message)
     except HTTPException:

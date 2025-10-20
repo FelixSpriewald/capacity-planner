@@ -33,7 +33,7 @@ class SprintBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     start_date: date
     end_date: date
-    
+
     @field_validator('end_date')
     @classmethod
     def validate_dates(cls, v, info):
@@ -67,7 +67,7 @@ class SprintRosterBase(BaseModel):
     allocation: Decimal = Field(..., gt=0.0, le=1.0)
     assignment_from: Optional[date] = None
     assignment_to: Optional[date] = None
-    
+
     @field_validator('assignment_to')
     @classmethod
     def validate_assignment_dates(cls, v, info):
@@ -101,7 +101,7 @@ class PTOBase(BaseModel):
     to_date: date
     type: str = Field(..., min_length=1, max_length=50)
     notes: Optional[str] = Field(None, max_length=500)
-    
+
     @field_validator('to_date')
     @classmethod
     def validate_dates(cls, v, info):
@@ -216,7 +216,7 @@ class PTOBase(BaseModel):
     from_date: date
     to_date: date
     description: Optional[str] = Field(None, max_length=500)
-    
+
     @field_validator('to_date')
     @classmethod
     def validate_dates(cls, v, info):

@@ -47,15 +47,15 @@ def create_pto(pto: PTOCreate, db: Session = Depends(get_db)):
         member = member_crud.get_member(db, pto.member_id)
         if not member:
             raise HTTPException(status_code=404, detail=MEMBER_NOT_FOUND)
-        
+
         # Validation Service initialisieren
         validation_service = ValidationService(db)
-        
+
         # PTO-Validierung
         validation_service.validate_pto_dates(pto.member_id, pto.from_date, pto.to_date)
-        
+
         return pto_crud.create_pto(db=db, pto=pto)
-        
+
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=f"{VALIDATION_ERROR}: {str(e)}")
 
@@ -68,24 +68,24 @@ def update_pto(pto_id: int, pto_update: PTOUpdate, db: Session = Depends(get_db)
         existing_pto = pto_crud.get_pto(db, pto_id)
         if not existing_pto:
             raise HTTPException(status_code=404, detail=PTO_NOT_FOUND)
-        
+
         update_data = pto_update.model_dump(exclude_unset=True)
-        
+
         # Validation Service initialisieren
         validation_service = ValidationService(db)
-        
+
         # Validiere Datumsangaben falls geändert
         from_date = update_data.get('from_date', existing_pto.from_date)
         to_date = update_data.get('to_date', existing_pto.to_date)
         member_id = existing_pto.member_id
-        
+
         validation_service.validate_pto_dates(member_id, from_date, to_date, exclude_pto_id=pto_id)
-        
+
         result = pto_crud.update_pto(db=db, pto_id=pto_id, pto_update=update_data)
         if result is None:
             raise HTTPException(status_code=404, detail=PTO_NOT_FOUND)
         return result
-        
+
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=f"{VALIDATION_ERROR}: {str(e)}")
 

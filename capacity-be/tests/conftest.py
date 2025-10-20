@@ -43,7 +43,7 @@ def db_session():
     """Test Database Session Fixture"""
     # Create tables
     Base.metadata.create_all(bind=engine)
-    
+
     # Get session
     db = TestingSessionLocal()
     try:
@@ -71,7 +71,7 @@ def sample_members(db_session):
             active=True
         ),
         Member(
-            name="Bogdan Ivanov", 
+            name="Bogdan Ivanov",
             employment_ratio=0.75,
             region_code="UA",
             active=True
@@ -83,14 +83,14 @@ def sample_members(db_session):
             active=True
         )
     ]
-    
+
     for member in members:
         db_session.add(member)
     db_session.commit()
-    
+
     for member in members:
         db_session.refresh(member)
-    
+
     return members
 
 
@@ -123,9 +123,9 @@ def sample_holidays(db_session):
             region_code="UA"
         )
     ]
-    
+
     for holiday in holidays:
         db_session.add(holiday)
     db_session.commit()
-    
+
     return holidays
