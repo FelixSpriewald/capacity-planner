@@ -28,6 +28,7 @@
             v-model="form.start_date"
             dateFormat="dd.mm.yy"
             showIcon
+            :firstDayOfWeek="1"
             :class="{ 'p-invalid': errors.start_date }"
             class="w-full"
             placeholder="Start Datum wählen"
@@ -42,6 +43,7 @@
             v-model="form.end_date"
             dateFormat="dd.mm.yy"
             showIcon
+            :firstDayOfWeek="1"
             :class="{ 'p-invalid': errors.end_date }"
             class="w-full"
             placeholder="End Datum wählen"
@@ -50,18 +52,7 @@
         </div>
       </div>
 
-      <div class="form-field" v-if="isEdit">
-        <label for="status" class="form-label">Status</label>
-        <Dropdown
-          id="status"
-          v-model="form.status"
-          :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Status wählen"
-          class="w-full"
-        />
-      </div>
+
 
       <div class="sprint-info" v-if="form.start_date && form.end_date">
         <div class="info-card">
@@ -104,7 +95,6 @@ import { ref, computed, watch } from 'vue'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Calendar from 'primevue/calendar'
-import Dropdown from 'primevue/dropdown'
 import Button from 'primevue/button'
 import type { Sprint, SprintStatus } from '@/types'
 
@@ -130,25 +120,41 @@ const emit = defineEmits<Emits>()
 const form = ref({
   name: '',
   start_date: null as Date | null,
-  end_date: null as Date | null,
-  status: 'draft' as SprintStatus
+  end_date: null as Date | null
 })
-
 const errors = ref({
   name: '',
   start_date: '',
   end_date: ''
 })
 
-// Status options
-const statusOptions = [
-  { label: 'Entwurf', value: 'draft' },
-  { label: 'Aktiv', value: 'active' },
-  { label: 'Abgeschlossen', value: 'completed' }
-]
+// Automatic status calculation
+const calculateStatus = (startDate: Date, endDate: Date): SprintStatus => {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0) // Reset time to start of day
+
+  const start = new Date(startDate)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(endDate)
+  end.setHours(23, 59, 59, 999) // End of day
+
+  if (now < start) {
+    return 'planned'
+  } else if (now >= start && now <= end) {
+    return 'active'
+  } else {
+    return 'finished'
+  }
+}
 
 // Computed
 const isEdit = computed(() => !!props.sprint)
+
+const currentStatus = computed(() => {
+  if (!form.value.start_date || !form.value.end_date) return 'planned'
+  return calculateStatus(form.value.start_date, form.value.end_date)
+})
 
 const isFormValid = computed(() => {
   // Basic validation - just check if required fields have values
@@ -197,19 +203,58 @@ watch(() => props.visible, (visible) => {
 })
 
 // Methods
-const resetForm = () => {
-  form.value = {
-    name: '',
-    start_date: null,
-    end_date: null,
-    status: 'draft'
-  }
-
+// Utility functions
+const clearErrors = () => {
   errors.value = {
     name: '',
     start_date: '',
     end_date: ''
   }
+}
+
+const validateForm = (): boolean => {
+  clearErrors()
+  let isValid = true
+
+  if (!form.value.name.trim()) {
+    errors.value.name = 'Sprint Name ist erforderlich'
+    isValid = false
+  }
+
+  if (!form.value.start_date) {
+    errors.value.start_date = 'Start Datum ist erforderlich'
+    isValid = false
+  }
+
+  if (!form.value.end_date) {
+    errors.value.end_date = 'End Datum ist erforderlich'
+    isValid = false
+  }
+
+  if (form.value.start_date && form.value.end_date && form.value.start_date >= form.value.end_date) {
+    errors.value.end_date = 'End Datum muss nach dem Start Datum liegen'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const formatDateForAPI = (date: Date | null): string => {
+  if (!date) return ''
+  const isoString = date.toISOString()
+  const datePart = isoString.split('T')[0]
+  return datePart || ''
+}
+
+
+
+const resetForm = () => {
+  form.value = {
+    name: '',
+    start_date: null,
+    end_date: null
+  }
+  clearErrors()
 }
 
 const loadSprintData = () => {
@@ -218,54 +263,23 @@ const loadSprintData = () => {
   form.value = {
     name: props.sprint.name,
     start_date: new Date(props.sprint.start_date),
-    end_date: new Date(props.sprint.end_date),
-    status: props.sprint.status
+    end_date: new Date(props.sprint.end_date)
   }
 }
 
-const formatDate = (date: Date): string => {
-  return date.toISOString().split('T')[0] || ''
-}
+
 
 const handleSubmit = () => {
-  // Clear previous errors
-  errors.value = {
-    name: '',
-    start_date: '',
-    end_date: ''
-  }
+  if (!validateForm()) return
 
-  // Validate on submit
-  if (!form.value.name.trim()) {
-    errors.value.name = 'Sprint Name ist erforderlich'
-  } else if (form.value.name.length < 3) {
-    errors.value.name = 'Sprint Name muss mindestens 3 Zeichen lang sein'
-  }
+  const status = currentStatus.value
 
-  if (!form.value.start_date) {
-    errors.value.start_date = 'Start Datum ist erforderlich'
-  }
-
-  if (!form.value.end_date) {
-    errors.value.end_date = 'End Datum ist erforderlich'
-  } else if (form.value.start_date && form.value.end_date <= form.value.start_date) {
-    errors.value.end_date = 'End Datum muss nach dem Start Datum liegen'
-  }
-
-  // Check if there are any errors
-  const hasErrors = errors.value.name || errors.value.start_date || errors.value.end_date
-  if (hasErrors) {
-    return
-  }
-
-  const formData = {
+  emit('submit', {
     name: form.value.name.trim(),
-    start_date: formatDate(form.value.start_date!),
-    end_date: formatDate(form.value.end_date!),
-    ...(isEdit.value && { status: form.value.status })
-  }
-
-  emit('submit', formData)
+    start_date: formatDateForAPI(form.value.start_date),
+    end_date: formatDateForAPI(form.value.end_date),
+    status
+  })
 }
 </script>
 

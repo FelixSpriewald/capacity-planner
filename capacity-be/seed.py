@@ -66,7 +66,7 @@ def create_seed_data():
             name="Sprint W43-44 2025",
             start_date=sprint_start,
             end_date=sprint_end,
-            status=SprintStatus.DRAFT
+            status=SprintStatus.PLANNED
         )
 
         db.add(sprint)

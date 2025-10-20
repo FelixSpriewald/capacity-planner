@@ -81,11 +81,6 @@ const navigationItems = computed<NavigationItem[]>(() => [
     route: '/sprints',
     badge: sprintsStore.stats?.active ? sprintsStore.stats.active.toString() : undefined,
   },
-  {
-    label: 'Demo',
-    icon: 'pi-star',
-    route: '/demo',
-  },
 ])
 
 const openSettings = () => {

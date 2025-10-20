@@ -32,7 +32,7 @@
           </div>
 
           <!-- Empty State -->
-          <div v-if="roster.length === 0" class="empty-state">
+          <div v-if="rosterData.length === 0" class="empty-state">
             <i class="pi pi-users empty-icon"></i>
             <h4>Keine Team-Mitglieder zugeordnet</h4>
             <p>Füge Members zu diesem Sprint hinzu um zu beginnen</p>
@@ -41,7 +41,7 @@
           <!-- Team Members List -->
           <div v-else class="team-members">
             <Card
-              v-for="member in roster"
+              v-for="member in rosterData"
               :key="member.member_id"
               class="member-card"
             >
@@ -68,36 +68,37 @@
                         :min="0.1"
                         :max="1.0"
                         :step="0.1"
-                        @change="updateMember(member)"
                         class="allocation-slider"
                       />
                     </div>
 
                     <!-- Assignment Dates -->
                     <div class="assignment-dates">
-                      <div class="date-field">
-                        <label><strong>Assignment von:</strong></label>
-                        <Calendar
-                          v-model="member.assignment_from_date"
-                          dateFormat="dd.mm.yy"
-                          :minDate="sprintStartDate"
-                          :maxDate="sprintEndDate"
-                          placeholder="Gesamter Sprint"
-                          showButtonBar
-                          @date-select="updateMember(member)"
-                        />
-                      </div>
-                      <div class="date-field">
-                        <label><strong>Assignment bis:</strong></label>
-                        <Calendar
-                          v-model="member.assignment_to_date"
-                          dateFormat="dd.mm.yy"
-                          :minDate="sprintStartDate"
-                          :maxDate="sprintEndDate"
-                          placeholder="Gesamter Sprint"
-                          showButtonBar
-                          @date-select="updateMember(member)"
-                        />
+                      <div class="date-fields-row">
+                        <div class="date-field">
+                          <label><strong>Assignment von:</strong></label>
+                          <Calendar
+                            v-model="member.assignment_from_date"
+                            dateFormat="dd.mm.yy"
+                            :firstDayOfWeek="1"
+                            :minDate="sprintStartDate"
+                            :maxDate="sprintEndDate"
+                            placeholder="Sprint-Start"
+                            showButtonBar
+                          />
+                        </div>
+                        <div class="date-field">
+                          <label><strong>Assignment bis:</strong></label>
+                          <Calendar
+                            v-model="member.assignment_to_date"
+                            dateFormat="dd.mm.yy"
+                            :firstDayOfWeek="1"
+                            :minDate="sprintStartDate"
+                            :maxDate="sprintEndDate"
+                            placeholder="Sprint-Ende"
+                            showButtonBar
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -108,6 +109,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Dialog Footer -->
+    <template #footer>
+      <div class="dialog-footer" v-if="rosterData.length > 0">
+        <Button
+          label="Alle Änderungen speichern"
+          icon="pi pi-save"
+          @click="saveAllChanges"
+          :disabled="!hasAnyChanges"
+          class="p-button-success"
+        />
+      </div>
+    </template>
 
     <!-- Add Member Dialog -->
     <Dialog
@@ -141,28 +155,31 @@
           />
         </div>
 
-        <div class="form-field">
-          <label><strong>Assignment von (optional):</strong></label>
-          <Calendar
-            v-model="newMember.assignment_from_date"
-            dateFormat="dd.mm.yy"
-            :minDate="sprintStartDate"
-            :maxDate="sprintEndDate"
-            placeholder="Gesamter Sprint"
-            showButtonBar
-          />
-        </div>
-
-        <div class="form-field">
-          <label><strong>Assignment bis (optional):</strong></label>
-          <Calendar
-            v-model="newMember.assignment_to_date"
-            dateFormat="dd.mm.yy"
-            :minDate="sprintStartDate"
-            :maxDate="sprintEndDate"
-            placeholder="Gesamter Sprint"
-            showButtonBar
-          />
+        <div class="date-fields-row">
+          <div class="form-field">
+            <label><strong>Assignment von:</strong></label>
+            <Calendar
+              v-model="newMember.assignment_from_date"
+              dateFormat="dd.mm.yy"
+              :firstDayOfWeek="1"
+              :minDate="sprintStartDate"
+              :maxDate="sprintEndDate"
+              placeholder="Sprint-Start"
+              showButtonBar
+            />
+          </div>
+          <div class="form-field">
+            <label><strong>Assignment bis:</strong></label>
+            <Calendar
+              v-model="newMember.assignment_to_date"
+              dateFormat="dd.mm.yy"
+              :firstDayOfWeek="1"
+              :minDate="sprintStartDate"
+              :maxDate="sprintEndDate"
+              placeholder="Sprint-Ende"
+              showButtonBar
+            />
+          </div>
         </div>
       </div>
 
@@ -283,23 +300,59 @@ const sprintEndDate = computed(() => {
 // Helper functions
 const formatDateForApi = (date: Date | null): string | undefined => {
   if (!date) return undefined
-  return date.toISOString().split('T')[0]
+  // Use local date to avoid timezone issues
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const parseDateFromApi = (dateString: string | null | undefined): Date | null => {
   if (!dateString) return null
-  return new Date(dateString)
+  try {
+    return new Date(dateString)
+  } catch (error) {
+    console.warn('Failed to parse date:', dateString, error)
+    return null
+  }
 }
 
-// Enhanced roster with date objects for Calendar components
-const roster = computed(() => {
-  return props.roster.map(member => ({
+const hasChanges = (member: EnhancedMember): boolean => {
+  const original = originalRosterData.value.find(m => m.member_id === member.member_id)
+  if (!original) return false
+
+  return (
+    Math.abs(member.allocation - original.allocation) > 0.001 ||
+    (member.assignment_from_date?.getTime() || null) !== (original.assignment_from_date?.getTime() || null) ||
+    (member.assignment_to_date?.getTime() || null) !== (original.assignment_to_date?.getTime() || null)
+  )
+}
+
+const hasAnyChanges = computed(() => {
+  return rosterData.value.some(member => hasChanges(member))
+})
+
+// Enhanced roster with date objects for Calendar components and reactive allocation
+const rosterData = ref<EnhancedMember[]>([])
+const originalRosterData = ref<EnhancedMember[]>([])
+
+// Watch props.roster and update local reactive roster
+watch(() => props.roster, (newRoster) => {
+  const enhancedRoster = newRoster.map(member => ({
     ...member,
     allocation: Number.parseFloat(member.allocation.toString()),
     assignment_from_date: parseDateFromApi(member.assignment_from),
     assignment_to_date: parseDateFromApi(member.assignment_to)
   }))
-})
+  rosterData.value = enhancedRoster
+  // Store original data for comparison with proper date cloning
+  originalRosterData.value = enhancedRoster.map(member => ({
+    ...member,
+    allocation: member.allocation,
+    assignment_from_date: member.assignment_from_date ? new Date(member.assignment_from_date) : null,
+    assignment_to_date: member.assignment_to_date ? new Date(member.assignment_to_date) : null
+  }))
+}, { immediate: true })
 
 // Enhanced member type with date objects
 type EnhancedMember = SprintRoster & {
@@ -311,12 +364,43 @@ type EnhancedMember = SprintRoster & {
 
 // Actions
 const updateMember = (member: EnhancedMember) => {
-  emit('update-member', {
+  const updateData = {
     member_id: member.member_id,
     allocation: member.allocation,
     assignment_from: formatDateForApi(member.assignment_from_date),
     assignment_to: formatDateForApi(member.assignment_to_date)
+  }
+
+  console.log('Updating member with data:', updateData)
+  console.log('Original dates:', {
+    from: member.assignment_from_date,
+    to: member.assignment_to_date
   })
+
+  emit('update-member', updateData)
+
+  // Update original data to reflect saved state
+  const originalIndex = originalRosterData.value.findIndex(m => m.member_id === member.member_id)
+  if (originalIndex !== -1) {
+    originalRosterData.value[originalIndex] = {
+      ...member,
+      allocation: member.allocation,
+      assignment_from_date: member.assignment_from_date ? new Date(member.assignment_from_date) : null,
+      assignment_to_date: member.assignment_to_date ? new Date(member.assignment_to_date) : null
+    }
+  }
+}
+
+const saveAllChanges = () => {
+  // Save all members that have changes
+  rosterData.value.forEach(member => {
+    if (hasChanges(member)) {
+      updateMember(member)
+    }
+  })
+
+  // Close dialog after saving
+  emit('update:visible', false)
 }
 
 const addMemberToRoster = () => {
@@ -462,9 +546,23 @@ watch(() => props.visible, (newValue) => {
 }
 
 .assignment-dates {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.date-fields-row {
+  display: flex;
   gap: 1rem;
+}
+
+.date-fields-row .date-field {
+  flex: 1;
+}
+
+.date-fields-row .form-field {
+  flex: 1;
 }
 
 .date-field {

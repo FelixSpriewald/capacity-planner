@@ -1,7 +1,7 @@
 """Initial migration - create all tables
 
 Revision ID: 3947a09bbc8a
-Revises: 
+Revises:
 Create Date: 2025-10-20 12:17:28.099723
 
 """
@@ -42,7 +42,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('start_date', sa.Date(), nullable=False),
     sa.Column('end_date', sa.Date(), nullable=False),
-    sa.Column('status', sa.Enum('DRAFT', 'ACTIVE', 'CLOSED', name='sprintstatus'), nullable=False),
+    sa.Column('status', sa.Enum('PLANNED', 'ACTIVE', 'FINISHED', name='sprintstatus'), nullable=False),
     sa.PrimaryKeyConstraint('sprint_id')
     )
     op.create_table('availability_overrides',

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Optional, List
 from enum import Enum
@@ -57,6 +57,10 @@ class SprintUpdate(BaseModel):
 class SprintResponse(SprintBase):
     sprint_id: int
     status: SprintStatus
+    # Optional statistics
+    member_count: Optional[int] = None
+    total_capacity_hours: Optional[float] = None
+    working_days: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,5 +1,5 @@
 // API Types
-export type SprintStatus = 'draft' | 'active' | 'completed'
+export type SprintStatus = 'planned' | 'active' | 'finished'
 export type PTOType = 'vacation' | 'sick' | 'personal'
 export type OverrideState = 'available' | 'out' | 'half' | null
 export type AutoStatus = 'weekend' | 'holiday' | 'pto' | 'out_of_assignment' | 'available'
@@ -27,6 +27,10 @@ export interface Sprint {
   start_date: string
   end_date: string
   status: SprintStatus
+  // Optional statistics
+  member_count?: number
+  total_capacity_hours?: number
+  working_days?: number
 }
 
 export interface SprintRoster {
@@ -73,6 +77,7 @@ export interface DayAvailability {
 export interface MemberAvailability {
   member_id: number
   member_name: string
+  allocation: number
   days: DayAvailability[]
   summary: {
     total_days: number
@@ -116,7 +121,6 @@ export interface SprintFormData {
   name: string
   start_date: string
   end_date: string
-  status: SprintStatus
 }
 
 export interface PTOFormData {
@@ -164,7 +168,7 @@ export interface MemberFilter {
 }
 
 export interface SprintFilter {
-  status?: SprintStatus
+  name?: string
   date_from?: string
   date_to?: string
 }

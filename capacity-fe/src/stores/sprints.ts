@@ -21,24 +21,19 @@ export const useSprintsStore = defineStore('sprints', () => {
   const filteredSprints = computed(() => {
     let result = [...sprints.value]
 
-    // Apply filters
-    if (filter.value.status) {
-      result = result.filter((s) => s.status === filter.value.status)
-    }
-
-    if (filter.value.date_from) {
-      result = result.filter((s) => s.start_date >= filter.value.date_from!)
-    }
-
-    if (filter.value.date_to) {
-      result = result.filter((s) => s.end_date <= filter.value.date_to!)
-    }
-
-    // Apply sorting
+  // Apply filters
+  if (filter.value.name) {
+    result = result.filter((s) => s.name.toLowerCase().includes(filter.value.name!.toLowerCase()))
+  }    // Apply sorting
     result.sort((a, b) => {
       const { field, direction } = sortOptions.value
       let aValue = a[field as keyof Sprint]
       let bValue = b[field as keyof Sprint]
+
+      // Handle undefined values
+      if (aValue === undefined && bValue === undefined) return 0
+      if (aValue === undefined) return direction === 'asc' ? -1 : 1
+      if (bValue === undefined) return direction === 'asc' ? 1 : -1
 
       if (typeof aValue === 'string') aValue = aValue.toLowerCase()
       if (typeof bValue === 'string') bValue = bValue.toLowerCase()
@@ -53,21 +48,21 @@ export const useSprintsStore = defineStore('sprints', () => {
 
   const activeSprints = computed(() => sprints.value.filter((s) => s.status === 'active'))
 
-  const draftSprints = computed(() => sprints.value.filter((s) => s.status === 'draft'))
+  const plannedSprints = computed(() => sprints.value.filter((s) => s.status === 'planned'))
 
-  const completedSprints = computed(() => sprints.value.filter((s) => s.status === 'completed'))
+  const finishedSprints = computed(() => sprints.value.filter((s) => s.status === 'finished'))
 
   const sprintsByStatus = computed(() => ({
-    draft: draftSprints.value,
+    planned: plannedSprints.value,
     active: activeSprints.value,
-    completed: completedSprints.value,
+    finished: finishedSprints.value,
   }))
 
   const stats = computed(() => ({
     total: sprints.value.length,
-    draft: draftSprints.value.length,
+    planned: plannedSprints.value.length,
     active: activeSprints.value.length,
-    completed: completedSprints.value.length,
+    finished: finishedSprints.value.length,
   }))
 
   // Actions
@@ -189,7 +184,7 @@ export const useSprintsStore = defineStore('sprints', () => {
     sprintId: number,
     memberId: number,
     day: string,
-    state: 'available' | 'out' | 'half' | null,
+    state: 'available' | 'unavailable' | 'half' | null,
     reason?: string,
   ) {
     try {
@@ -324,8 +319,8 @@ export const useSprintsStore = defineStore('sprints', () => {
     // Getters
     filteredSprints,
     activeSprints,
-    draftSprints,
-    completedSprints,
+    plannedSprints,
+    finishedSprints,
     sprintsByStatus,
     stats,
 

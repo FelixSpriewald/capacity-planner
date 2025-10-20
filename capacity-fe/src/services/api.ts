@@ -110,11 +110,18 @@ class ApiClient {
     sprintId: number,
     memberId: number,
     day: string,
-    data: { state: 'available' | 'out' | 'half' | null; reason?: string },
+    data: { state: 'available' | 'unavailable' | 'half' | null; reason?: string },
   ): Promise<void> {
-    return this.request<void>(`/api/v1/sprints/${sprintId}/availability/${memberId}/${day}`, {
+    const requestBody = {
+      member_id: memberId,
+      day: day,
+      state: data.state,
+      reason: data.reason
+    }
+
+    return this.request<void>(`/api/v1/sprints/${sprintId}/availability`, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      body: JSON.stringify(requestBody),
     })
   }
 
@@ -138,9 +145,16 @@ class ApiClient {
     memberId: number,
     data: { allocation: number; assignment_from?: string; assignment_to?: string },
   ): Promise<void> {
+    // Convert undefined to null for API
+    const apiData = {
+      allocation: data.allocation,
+      assignment_from: data.assignment_from || null,
+      assignment_to: data.assignment_to || null
+    }
+
     return this.request<void>(`/api/v1/sprints/${sprintId}/roster/${memberId}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(apiData),
     })
   }
 
