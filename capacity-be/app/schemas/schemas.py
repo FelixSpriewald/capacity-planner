@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Optional, List
 from enum import Enum
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 from app.db.models import SprintStatus, AvailabilityState
 
@@ -33,6 +33,14 @@ class SprintBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     start_date: date
     end_date: date
+    
+    @field_validator('end_date')
+    @classmethod
+    def validate_dates(cls, v, info):
+        """Validate that end_date >= start_date"""
+        if 'start_date' in info.data and v < info.data['start_date']:
+            raise ValueError('end_date must be >= start_date')
+        return v
 
 
 class SprintCreate(SprintBase):
@@ -59,6 +67,15 @@ class SprintRosterBase(BaseModel):
     allocation: Decimal = Field(..., gt=0.0, le=1.0)
     assignment_from: Optional[date] = None
     assignment_to: Optional[date] = None
+    
+    @field_validator('assignment_to')
+    @classmethod
+    def validate_assignment_dates(cls, v, info):
+        """Validate that assignment_to >= assignment_from"""
+        if v is not None and 'assignment_from' in info.data and info.data['assignment_from'] is not None:
+            if v < info.data['assignment_from']:
+                raise ValueError('assignment_to must be >= assignment_from')
+        return v
 
 
 class SprintRosterCreate(SprintRosterBase):
@@ -84,6 +101,14 @@ class PTOBase(BaseModel):
     to_date: date
     type: str = Field(..., min_length=1, max_length=50)
     notes: Optional[str] = Field(None, max_length=500)
+    
+    @field_validator('to_date')
+    @classmethod
+    def validate_dates(cls, v, info):
+        """Validate that to_date >= from_date"""
+        if 'from_date' in info.data and v < info.data['from_date']:
+            raise ValueError('to_date must be >= from_date')
+        return v
 
 
 class PTOCreate(PTOBase):
@@ -179,6 +204,40 @@ class AvailabilityOverridePatch(BaseModel):
 class AvailabilityOverrideResponse(AvailabilityOverrideBase):
     sprint_id: int
     member_id: int
+    member_name: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# === PTO (Personal Time Off) Schemas ===
+
+class PTOBase(BaseModel):
+    member_id: int
+    from_date: date
+    to_date: date
+    description: Optional[str] = Field(None, max_length=500)
+    
+    @field_validator('to_date')
+    @classmethod
+    def validate_dates(cls, v, info):
+        """Validate that to_date >= from_date"""
+        if 'from_date' in info.data and v < info.data['from_date']:
+            raise ValueError('to_date must be >= from_date')
+        return v
+
+
+class PTOCreate(PTOBase):
+    pass
+
+
+class PTOUpdate(BaseModel):
+    from_date: Optional[date] = None
+    to_date: Optional[date] = None
+    description: Optional[str] = Field(None, max_length=500)
+
+
+class PTO(PTOBase):
+    pto_id: int
     member_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

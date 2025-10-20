@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api import members, sprints, roster, availability
+from app.api import members, sprints, roster, availability, pto
 
 # Main API Router
 router = APIRouter()
@@ -13,6 +13,7 @@ router.include_router(members.router, prefix="/members", tags=["members"])
 router.include_router(sprints.router, prefix=SPRINTS_PREFIX, tags=["sprints"])
 router.include_router(roster.router, prefix=SPRINTS_PREFIX, tags=["roster"])  # /sprints/{id}/roster
 router.include_router(availability.router, prefix=SPRINTS_PREFIX, tags=["availability"])  # /sprints/{id}/availability
+router.include_router(pto.router, prefix="/pto", tags=["pto"])
 
 # Status API Route
 @router.get("/status")
@@ -33,6 +34,11 @@ async def api_status():
             "DELETE /api/sprints/{id}/roster/{member_id} - Remove member from sprint",
             "GET /api/sprints/{id}/availability - Get availability matrix",
             "PATCH /api/sprints/{id}/availability - Set single override",
-            "PATCH /api/sprints/{id}/availability/bulk - Bulk update overrides"
+            "PATCH /api/sprints/{id}/availability/bulk - Bulk update overrides",
+            "GET /api/pto - List all PTO entries",
+            "POST /api/pto - Create PTO entry",
+            "GET /api/pto/{id} - Get PTO entry",
+            "PUT /api/pto/{id} - Update PTO entry",
+            "DELETE /api/pto/{id} - Delete PTO entry"
         ]
     }
