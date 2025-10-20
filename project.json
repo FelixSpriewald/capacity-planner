@@ -1,0 +1,279 @@
+{
+  "meta": {
+    "name": "Capacity Planner (Single-Team) - Availability Grid + Capacity",
+    "version": "v1.0",
+    "authoring": "VS Code + Copilot",
+    "timezone": "Europe/Berlin",
+    "language": "de",
+    "scope": {
+      "teams": 1,
+      "features": ["Sprints", "Roster", "PTO", "Feiertage nach Region", "Availability-Grid mit Overrides", "Kapazitätsberechnung (Tage/Stunden)"]
+    },
+    "stack": {
+      "frontend": "Vue 3 + TypeScript + Vite + PrimeVue + Pinia + Vue Router",
+      "backend": "Python FastAPI + SQLAlchemy + Alembic",
+      "database": "MySQL 8",
+      "testing": "Vitest (FE), Pytest (BE)",
+      "packaging": "pnpm (FE), uv/pip (BE)",
+      "container": "Docker Compose (MySQL, Backend, optional Frontend)"
+    }
+  },
+
+  "commands": {
+    "frontend": [
+      "pnpm create vite@latest capacity-fe -- --template vue-ts",
+      "cd capacity-fe && pnpm add primevue primeicons pinia vue-router axios dayjs",
+      "pnpm add -D @types/node vite-plugin-checker @vitejs/plugin-vue eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin prettier eslint-config-prettier eslint-plugin-vue"
+    ],
+    "backend": [
+      "mkdir -p capacity-be && cd capacity-be",
+      "uv init --app --name capacity-be || python -m venv .venv",
+      "uv pip install fastapi uvicorn[standard] sqlalchemy sqlalchemy-utils alembic pydantic-settings python-dotenv mysqlclient || pip install fastapi uvicorn[standard] sqlalchemy sqlalchemy-utils alembic pydantic-settings python-dotenv mysqlclient",
+      "uv pip install pytest httpx || pip install pytest httpx",
+      "alembic init db"
+    ],
+    "docker": [
+      "docker compose up -d",
+      "docker compose logs -f db",
+      "docker compose logs -f api"
+    ]
+  },
+
+  "architecture": {
+    "entities": [
+      "members(member_id, name, employment_ratio, region_code, active)",
+      "sprints(sprint_id, name, start_date, end_date, status)",
+      "sprint_roster(sprint_id, member_id, allocation, assignment_from, assignment_to)",
+      "pto(pto_id, member_id, from_date, to_date, type, notes)",
+      "holidays(holiday_id, date, region_code, name, is_company_day)",
+      "availability_overrides(sprint_id, member_id, day, state, reason)"
+    ],
+    "regions_example": ["DE-NW", "UA"],
+    "availability_states": ["available", "unavailable", "half"],
+    "calculation_notes": [
+      "Werktage = Mo–Fr",
+      "Auto-Status: Wochenende, Feiertage (per region_code), PTO, außerhalb Assignment",
+      "Override hat Priorität",
+      "Summen: 1.0 für available, 0.5 für half, 0.0 sonst",
+      "Stunden = Tage * hours_per_day(=8) * employment_ratio * allocation"
+    ]
+  },
+
+  "tasks": [
+    {
+      "id": "00_repo_structure",
+      "title": "Projektstruktur & Root-Dateien anlegen",
+      "prompt": "Erzeuge ein Monorepo-Verzeichnis mit `capacity-fe/` (Frontend) und `capacity-be/` (Backend) plus `docker-compose.yml` im Root. Füge auch `.editorconfig`, `.gitignore`, `README.md` hinzu. Beschreibe kurz im README die Komponenten und Startkommandos (Frontend dev, Backend dev, Docker Compose).",
+      "acceptance_criteria": [
+        "Root enthält: capacity-fe/, capacity-be/, docker-compose.yml, README.md, .gitignore, .editorconfig",
+        "README beschreibt Setup & Dev-Start",
+        ".gitignore ignoriert node_modules, .venv, __pycache__, dist, .env*"
+      ]
+    },
+
+    {
+      "id": "01_backend_skeleton",
+      "title": "FastAPI Skeleton + Settings + DB Session",
+      "prompt": "Im Ordner `capacity-be/` erstelle FastAPI-Struktur: `app/main.py`, `app/api/__init__.py`, `app/api/routes.py`, `app/core/config.py` (Pydantic Settings: DB URL, TZ), `app/db/base.py` (Base = declarative_base), `app/db/session.py` (SessionLocal), `app/db/models/*.py` (leere Platzhalter), `app/db/crud/*.py` (Platzhalter). Richte Uvicorn-Start über `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` ein. Implementiere eine Health-Route `/health` (GET) mit `{status: 'ok'}`.",
+      "acceptance_criteria": [
+        "uvicorn Startbefehl funktioniert lokal",
+        "GET /health liefert JSON {status:'ok'}",
+        "DB URL wird aus .env gelesen (MYSQL_URL)"
+      ],
+      "files_to_create": [
+        "capacity-be/app/main.py",
+        "capacity-be/app/api/routes.py",
+        "capacity-be/app/core/config.py",
+        "capacity-be/app/db/base.py",
+        "capacity-be/app/db/session.py",
+        "capacity-be/app/db/models/__init__.py",
+        "capacity-be/app/db/crud/__init__.py",
+        "capacity-be/.env.example"
+      ]
+    },
+
+    {
+      "id": "02_backend_models_migrations",
+      "title": "SQLAlchemy-Modelle + Alembic-Migration",
+      "prompt": "Implementiere SQLAlchemy-Modelle für: members, sprints, sprint_roster, pto, holidays, availability_overrides. Nutze die Felder laut Architektur. Primärschlüssel: UUID (oder autoincrement int – wähle und bleibe konsistent; bei MySQL gern BIGINT AUTOINCREMENT). Setze sinnvolle Indizes (z.B. sprint_roster: (sprint_id, member_id), availability_overrides: (sprint_id, member_id, day UNIQUE)). Erstelle Alembic-Revision und Migrationen. Füge Seed-Skript oder Alembic-Seed ein, das Beispiel-Daten lädt: 2 Members (DE-NW, UA), 1 Sprint (Draft), 2–3 passende Feiertage (NRW und UA), 1–2 PTO-Einträge. ",
+      "acceptance_criteria": [
+        "alembic upgrade head erstellt alle Tabellen",
+        "Seed lädt Beispiel-Daten ohne Fehler",
+        "Foreign Keys & Constraints vorhanden (z.B. roster PK (sprint_id, member_id))"
+      ]
+    },
+
+    {
+      "id": "03_backend_business_logic",
+      "title": "Availability-Logik & REST-Endpunkte",
+      "prompt": "Implementiere REST-API in `app/api/routes.py`/Subroutern: CRUD für members, sprints (inkl. status draft/active/closed), sprint_roster (add/remove member), pto, holidays, availability_overrides. Implementiere Read-Endpoint `GET /sprints/{id}/availability` der für alle Roster-Mitglieder den Tagestatus (auto + overrides) zurückgibt: Für den Sprintzeitraum erzeuge eine Zellenliste je Member/Day mit Feldern: `auto_state`, `override_state`, `final_state`, `is_weekend`, `is_holiday`, `is_pto`, `in_assignment`. Integriere Kapazitätssummen (tage_sum, stunden_sum) je Member und gesamt am Ende. Implementiere `PATCH /sprints/{id}/availability` zum Setzen/Entfernen einzelner Overrides (state in ['available','half','unavailable'] oder `null` zum Löschen).",
+      "acceptance_criteria": [
+        "GET /sprints/{id}/availability liefert konsistente Matrix inkl. Summen",
+        "PATCH setzt/löscht einzelne Overrides idempotent",
+        "PTO/Feiertage/WE korrekt erkannt; Overrides haben Priorität"
+      ]
+    },
+
+    {
+      "id": "04_backend_validation",
+      "title": "Validierungen & Guards",
+      "prompt": "Füge Validierungen hinzu: Sprint (`end_date >= start_date`), roster (Uniqueness (sprint_id, member_id)), allocation in (0,1], PTO `to_date >= from_date`. Availability: day muss im Sprint liegen. Rechne Werktage als Mo–Fr. Guard: Member ohne region_code => Feiertage ignorieren. Stelle sicher, dass assignment_from/to (falls gesetzt) das verfügbare Fenster innerhalb des Sprints beschneiden.",
+      "acceptance_criteria": [
+        "Ungültige Eingaben führen zu 422 mit erklärender Nachricht",
+        "Assignment-Fenster beschränkt Availability korrekt",
+        "Alle neuen Unit-Tests grün"
+      ]
+    },
+
+    {
+      "id": "05_backend_tests",
+      "title": "Pytest: Kernfälle abdecken",
+      "prompt": "Schreibe Pytests für: (1) Feiertage je Region (DE-NW vs. UA), (2) PTO-Überlappung, (3) Assignment-Fenster, (4) Overrides-Priorität, (5) Summenbildung (Tage/Stunden) inklusive employment_ratio und allocation. Nutze Factory-Hilfen/Fixtures. ",
+      "acceptance_criteria": [
+        "pytest grün",
+        "Tests abdecken alle o.g. Fälle",
+        "Coverage ~60%+ für api/logic"
+      ]
+    },
+
+    {
+      "id": "06_docker_compose",
+      "title": "Docker Compose für MySQL + Backend",
+      "prompt": "Erstelle `docker-compose.yml` im Root mit Services: `db` (mysql:8, root pwd, db name, healthcheck), Volumes für Daten; `api` (build capacity-be, env MYSQL_URL, Port 8000, depends_on db:healthy). Optional `fe` als node:20 Service für Vite dev. Dokumentiere in README Start/Stop/Logs.",
+      "acceptance_criteria": [
+        "docker compose up -d startet DB und API",
+        "API /health erreichbar auf localhost:8000",
+        "Persistente MySQL-Daten im Volume"
+      ]
+    },
+
+    {
+      "id": "07_frontend_scaffold",
+      "title": "Vue 3 Scaffold + PrimeVue + Pinia + Router",
+      "prompt": "Im `capacity-fe/` richte Vite (vue-ts) ein. Integriere PrimeVue (Theme, PrimeIcons), Pinia, Vue Router. Erzeuge Layout: Header (Sprint-Auswahl, Status-Badge, Summenbereich), Content-RouterView. Baue API-Client (`/src/api/client.ts`) mit axios-Basis-URL. Erzeuge Stores: `useSprintStore`, `useMemberStore`, `useAvailabilityStore`. ",
+      "acceptance_criteria": [
+        "App startet lokal (`pnpm dev`)",
+        "PrimeVue Theme sichtbar, Router/Pinia aktiv",
+        "API-Client konfigurierbar via .env"
+      ]
+    },
+
+    {
+      "id": "08_frontend_sprint_flow",
+      "title": "Sprint-Flow UI (Draft → Active)",
+      "prompt": "Erstelle Seiten/Dialogs: (1) Sprint-Liste (draft/active/closed), (2) Sprint anlegen (Name, Start, Ende), (3) Roster bearbeiten (Members hinzufügen/entfernen, allocation, assignment_from/to), (4) PTO-Maske je Member (von/bis, type). Implementiere Kopieren-vom-letzten-Sprint-Funktion (nur 1 Team, daher simpel: Roster des letzten aktiven oder closed Sprints übernehmen).",
+      "acceptance_criteria": [
+        "Neuen Sprint anlegen, Roster befüllen, PTO pflegen",
+        "Statuswechsel auf active möglich",
+        "Validierungen/UI-Fehler angezeigt"
+      ]
+    },
+
+    {
+      "id": "09_frontend_availability_grid",
+      "title": "Availability Grid (Abhaken-Ansicht)",
+      "prompt": "Baue eine Grid-Komponente `/src/components/AvailabilityGrid.vue`: Zeilen=Roster-Mitglieder, Spalten=alle Tage im Sprint. Jede Zelle zeigt final_state (Icon/Farbe): available=grün, half=halbfüllung, unavailable=grau/rot, Wochenende/Feiertag/PTO mit Badges/Tooltips. Click-Behavior: Klick toggelt `available → half → unavailable → (löschen → auto)`; Bulk-Auswahl per Shift-Drag: setze Zustand per Multi-Patch. Im Fuß jeder Zeile: Summe Tage & Stunden (berechnet clientseitig aus vom Backend gelieferten Werten).",
+      "acceptance_criteria": [
+        "GET /sprints/{id}/availability wird geladen und visualisiert",
+        "Klicks erzeugen PATCH-Requests und UI aktualisiert",
+        "Summen live korrekt (Tage & Stunden)"
+      ]
+    },
+
+    {
+      "id": "10_frontend_validation_feedback",
+      "title": "Warnungen & Badges",
+      "prompt": "Zeige Warnungen: Override auf Feiertag/PTO (gelbes Icon/Tooltip), Tage außerhalb Assignment (roter Rand), fehlender region_code (graues Icon). Zeige oben Sprint-Info: Anzahl Werktage, Anzahl Feiertage pro Region (aggregiert), Gesamt-Kapazität. ",
+      "acceptance_criteria": [
+        "Warnungen erscheinen kontextgenau",
+        "Sprintkopf zeigt sinnvolle Kennzahlen",
+        "Usability: Bulk-Aktionen (Spalte/Zeile/Woche) vorhanden"
+      ]
+    },
+
+    {
+      "id": "11_frontend_tests",
+      "title": "Vitest-Komponenten-Tests",
+      "prompt": "Schreibe Unit-Tests für AvailabilityGrid: (1) korrekte Darstellung Auto-Status vs. Override, (2) Click-Cycle, (3) Bulk-Änderungen, (4) Summenberechnung. Mocke API-Client.",
+      "acceptance_criteria": [
+        "vitest läuft grün",
+        "Kernlogik des Grids abgedeckt"
+      ]
+    },
+
+    {
+      "id": "12_seed_demo",
+      "title": "Demo-Daten & Happy-Path",
+      "prompt": "Erzeuge Seed-Daten: Mitglieder Alice(DE-NW), Bogdan(UA); Sprint W43 (Mo–Fr über 2 Wochen), Feiertage: DE-NW (Reformationstag falls im Sprint), UA (ein passender Feiertag), PTO: 1 Tag für Alice. Roster: beide mit allocation 1.0. Verifiziere im UI, dass Auto-Status korrekt erscheinen und Summen stimmen.",
+      "acceptance_criteria": [
+        "UI zeigt vorausgefüllte Feiertage/WE/PTO",
+        "Abhaken funktioniert, Summen plausibel"
+      ]
+    }
+  ],
+
+  "api_contract": {
+    "paths": {
+      "GET /health": "Status",
+      "GET /members": "Liste",
+      "POST /members": "Anlegen",
+      "GET /sprints": "Liste",
+      "POST /sprints": "Anlegen (draft)",
+      "PATCH /sprints/{id}": "Statuswechsel/Meta",
+      "GET /sprints/{id}/roster": "Roster lesen",
+      "POST /sprints/{id}/roster": "Member add/remove/update (allocation, assignment_from/to)",
+      "GET /pto?member_id=&sprint_id=": "PTO lesen (optional filter)",
+      "POST /pto": "PTO anlegen",
+      "DELETE /pto/{id}": "PTO löschen",
+      "GET /holidays?region_code=": "Feiertage lesen",
+      "POST /holidays": "Feiertag anlegen",
+      "GET /sprints/{id}/availability": "Grid-Daten (auto, overrides, final, Summen)",
+      "PATCH /sprints/{id}/availability": "Einzel- oder Bulk-Overrides setzen/löschen"
+    },
+    "availability_response_shape": {
+      "sprint": { "id": "string", "name": "string", "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD" },
+      "members": [
+        {
+          "member_id": "string",
+          "name": "string",
+          "employment_ratio": 1.0,
+          "allocation": 1.0,
+          "days": [
+            {
+              "date": "YYYY-MM-DD",
+              "auto_state": "available|unavailable|half|weekend|holiday|pto|out_of_assignment",
+              "override_state": "available|unavailable|half|null",
+              "final_state": "available|unavailable|half",
+              "is_weekend": true,
+              "is_holiday": false,
+              "is_pto": false,
+              "in_assignment": true
+            }
+          ],
+          "sum_days": 0.0,
+          "sum_hours": 0.0
+        }
+      ],
+      "sum_days_team": 0.0,
+      "sum_hours_team": 0.0
+    }
+  },
+
+  "style_and_quality": {
+    "frontend": [
+      "Nutze PrimeVue DataTable/VirtualScroller fürs Grid (oder einfache CSS-Grid, wenn leichter).",
+      "Komponenten sauber trennen: Grid (präsentation) vs. Store/Services (Daten).",
+      "Keine Hard-Coded-URLs: .env Vite VITE_API_URL nutzen."
+    ],
+    "backend": [
+      "Services/Repos trennen von API-Routern.",
+      "Pydantic-Schemas für Requests/Responses.",
+      "Zeitberechnungen mit datetime + dateutil/day boundaries; Wochentage per `weekday()<5`."
+    ],
+    "dx": [
+      "ESLint+Prettier Regeln (no any, explicit-function-return-type entspannt).",
+      "Pre-commit Hooks optional.",
+      "README mit Dev/Prod/Seed/Tests pflegen."
+    ]
+  }
+}

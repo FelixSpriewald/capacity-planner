@@ -1,0 +1,21 @@
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.23
+sqlalchemy-utils==0.41.1
+alembic==1.12.1
+pymysql==1.1.0
+cryptography==41.0.7
+
+# Configuration
+pydantic-settings==2.0.3
+python-dotenv==1.0.0
+
+# Testing
+pytest==7.4.3
+httpx==0.25.2
+
+# Utilities
+python-dateutil==2.8.2
