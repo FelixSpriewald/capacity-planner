@@ -198,7 +198,7 @@
           Möchten Sie "{{ memberToRemove?.member_name || 'Member' }}" wirklich aus dem Sprint-Team entfernen?
         </span>
       </div>
-      
+
       <template #footer>
         <div class="dialog-footer">
           <Button

@@ -155,7 +155,7 @@ const isFormValid = computed(() => {
   const hasName = form.value.name.trim() !== ''
   const hasStartDate = form.value.start_date !== null
   const hasEndDate = form.value.end_date !== null
-  
+
   return hasName && hasStartDate && hasEndDate
 })
 
@@ -167,18 +167,18 @@ const sprintDuration = computed(() => {
 
 const workingDays = computed(() => {
   if (!form.value.start_date || !form.value.end_date) return 0
-  
+
   let count = 0
   const start = new Date(form.value.start_date)
   const end = new Date(form.value.end_date)
-  
+
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const day = d.getDay()
     if (day !== 0 && day !== 6) { // Monday = 1, Sunday = 0
       count++
     }
   }
-  
+
   return count
 })
 
@@ -204,7 +204,7 @@ const resetForm = () => {
     end_date: null,
     status: 'draft'
   }
-  
+
   errors.value = {
     name: '',
     start_date: '',
@@ -214,7 +214,7 @@ const resetForm = () => {
 
 const loadSprintData = () => {
   if (!props.sprint) return
-  
+
   form.value = {
     name: props.sprint.name,
     start_date: new Date(props.sprint.start_date),
@@ -234,37 +234,37 @@ const handleSubmit = () => {
     start_date: '',
     end_date: ''
   }
-  
+
   // Validate on submit
   if (!form.value.name.trim()) {
     errors.value.name = 'Sprint Name ist erforderlich'
   } else if (form.value.name.length < 3) {
     errors.value.name = 'Sprint Name muss mindestens 3 Zeichen lang sein'
   }
-  
+
   if (!form.value.start_date) {
     errors.value.start_date = 'Start Datum ist erforderlich'
   }
-  
+
   if (!form.value.end_date) {
     errors.value.end_date = 'End Datum ist erforderlich'
   } else if (form.value.start_date && form.value.end_date <= form.value.start_date) {
     errors.value.end_date = 'End Datum muss nach dem Start Datum liegen'
   }
-  
+
   // Check if there are any errors
   const hasErrors = errors.value.name || errors.value.start_date || errors.value.end_date
   if (hasErrors) {
     return
   }
-  
+
   const formData = {
     name: form.value.name.trim(),
     start_date: formatDate(form.value.start_date!),
     end_date: formatDate(form.value.end_date!),
     ...(isEdit.value && { status: form.value.status })
   }
-  
+
   emit('submit', formData)
 }
 </script>
@@ -332,7 +332,7 @@ const handleSubmit = () => {
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }

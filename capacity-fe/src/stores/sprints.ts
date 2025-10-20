@@ -239,7 +239,7 @@ export const useSprintsStore = defineStore('sprints', () => {
   }
 
   async function addMemberToRoster(
-    sprintId: number, 
+    sprintId: number,
     memberData: { member_id: number; allocation: number; assignment_from?: string; assignment_to?: string }
   ) {
     try {
@@ -286,7 +286,7 @@ export const useSprintsStore = defineStore('sprints', () => {
         console.log('Roster operation already in progress, skipping...')
         return
       }
-      
+
       rosterLoading.value = true
       error.value = null
       await apiClient.removeMemberFromRoster(sprintId, memberId)

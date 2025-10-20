@@ -183,16 +183,16 @@ const createSprint = () => {
 const selectSprint = (sprint: Sprint) => {
   // Select the sprint to show details
   sprintsStore.selectSprint(sprint)
-  
+
   // Scroll to sprint details with smooth animation
   const detailsElement = document.querySelector('.sprint-details')
   if (detailsElement) {
-    detailsElement.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'start' 
+    detailsElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
     })
   }
-  
+
   // Show success toast
   toast.add({
     severity: 'info',
@@ -213,16 +213,16 @@ interface SprintFormData {
 const handleSprintSubmit = async (formData: SprintFormData) => {
   try {
     formLoading.value = true
-    
+
     if (editingSprint.value) {
       // Update existing sprint
       console.log('Updating sprint:', editingSprint.value.sprint_id, 'with data:', formData)
       const updatedSprint = await sprintsStore.updateSprint(editingSprint.value.sprint_id, formData)
       console.log('Sprint updated successfully:', updatedSprint)
-      
+
       // Refresh the sprint list to ensure UI is in sync
       await sprintsStore.fetchSprints()
-      
+
       toast.add({
         severity: 'success',
         summary: 'Erfolg',
@@ -238,10 +238,10 @@ const handleSprintSubmit = async (formData: SprintFormData) => {
       console.log('Creating new sprint with data:', sprintData)
       const newSprint = await sprintsStore.createSprint(sprintData)
       console.log('Sprint created successfully:', newSprint)
-      
+
       // Refresh the sprint list to ensure UI is in sync
       await sprintsStore.fetchSprints()
-      
+
       toast.add({
         severity: 'success',
         summary: 'Erfolg',
@@ -249,7 +249,7 @@ const handleSprintSubmit = async (formData: SprintFormData) => {
         life: 3000
       })
     }
-    
+
     showSprintForm.value = false
   } catch (err) {
     toast.add({
@@ -288,17 +288,17 @@ const confirmDeleteSprint = (sprint: Sprint) => {
 const deleteSprint = async (sprint: Sprint) => {
   try {
     await sprintsStore.deleteSprint(sprint.sprint_id)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
       detail: `Sprint "${sprint.name}" wurde erfolgreich gelöscht`,
       life: 3000
     })
-    
+
     // Refresh sprint list
     await sprintsStore.fetchSprints()
-    
+
     // Auto-select first sprint if available
     if (sprints.value.length > 0) {
       sprintsStore.selectSprint(sprints.value[0]!)
@@ -319,7 +319,7 @@ const handleAddMember = async (memberData: { member_id: number; allocation: numb
 
   try {
     await sprintsStore.addMemberToRoster(selectedSprint.value.sprint_id, memberData)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
@@ -341,7 +341,7 @@ const handleUpdateMember = async (memberData: { member_id: number; allocation: n
 
   try {
     await sprintsStore.updateRosterMember(selectedSprint.value.sprint_id, memberData)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
@@ -363,7 +363,7 @@ const handleRemoveMember = async (memberId: number) => {
 
   try {
     await sprintsStore.removeMemberFromRoster(selectedSprint.value.sprint_id, memberId)
-    
+
     toast.add({
       severity: 'success',
       summary: 'Erfolg',
@@ -402,7 +402,7 @@ const showRoster = async () => {
       membersStore.fetchMembers(),
       sprintsStore.fetchRoster(selectedSprint.value.sprint_id)
     ])
-    
+
     showRosterDialog.value = true
   } catch (error) {
     console.error('Failed to load roster data:', error)
@@ -450,7 +450,7 @@ onMounted(async () => {
   try {
     console.log('SprintsView: Loading sprints on mount...')
     await sprintsStore.fetchSprints()
-    
+
     // Auto-select first sprint
     if (sprints.value.length > 0) {
       sprintsStore.selectSprint(sprints.value[0]!)
