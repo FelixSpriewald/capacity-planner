@@ -174,7 +174,20 @@ export const useMembersStore = defineStore('members', () => {
 
       await apiClient.deleteMember(id)
 
-      members.value = members.value.filter((m) => m.member_id !== id)
+      // Update the member as inactive instead of removing from list
+      const memberIndex = members.value.findIndex((m) => m.member_id === id)
+      if (memberIndex !== -1) {
+        const currentMember = members.value[memberIndex]
+        if (currentMember) {
+          members.value[memberIndex] = {
+            member_id: currentMember.member_id,
+            name: currentMember.name,
+            employment_ratio: currentMember.employment_ratio,
+            region_code: currentMember.region_code,
+            active: false
+          }
+        }
+      }
 
       if (selectedMember.value?.member_id === id) {
         selectedMember.value = null
