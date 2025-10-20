@@ -107,9 +107,9 @@ curl "http://localhost:8000/api/v1/sprints/1/availability"
 - **Task 04**: Validierungen & Guards
 - **Task 05**: Pytest Test Suite (60% Coverage, 25/25 Tests PASSED)
 - **Task 06**: Docker Compose für MySQL + Backend ✅
+- **Task 07**: Vue 3 Frontend Scaffold + PrimeVue + Pinia + Router ✅
 
 ### 🎯 Als Nächstes
-- **Task 07**: Vue 3 Frontend Scaffold + PrimeVue + Pinia + Router
 - **Task 08**: Sprint-Flow UI (Draft → Active)
 - **Task 09**: Availability Grid (Abhaken-Ansicht)
 
