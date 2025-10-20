@@ -19,3 +19,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Declarative Base für Models
 Base = declarative_base()
+
+
+# Dependency für FastAPI
+def get_db():
+    """Database Session Dependency für FastAPI"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
