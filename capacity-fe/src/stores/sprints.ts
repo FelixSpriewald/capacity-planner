@@ -1,0 +1,252 @@
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+import type { Sprint, SprintFilter, SortOption, AvailabilityResponse } from '@/types'
+import { apiClient } from '@/services/api'
+
+export const useSprintsStore = defineStore('sprints', () => {
+  // State
+  const sprints = ref<Sprint[]>([])
+  const selectedSprint = ref<Sprint | null>(null)
+  const availability = ref<AvailabilityResponse | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  // Filters and sorting
+  const filter = ref<SprintFilter>({})
+  const sortOptions = ref<SortOption>({ field: 'start_date', direction: 'desc' })
+
+  // Getters
+  const filteredSprints = computed(() => {
+    let result = [...sprints.value]
+
+    // Apply filters
+    if (filter.value.status) {
+      result = result.filter((s) => s.status === filter.value.status)
+    }
+
+    if (filter.value.date_from) {
+      result = result.filter((s) => s.start_date >= filter.value.date_from!)
+    }
+
+    if (filter.value.date_to) {
+      result = result.filter((s) => s.end_date <= filter.value.date_to!)
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      const { field, direction } = sortOptions.value
+      let aValue = a[field as keyof Sprint]
+      let bValue = b[field as keyof Sprint]
+
+      if (typeof aValue === 'string') aValue = aValue.toLowerCase()
+      if (typeof bValue === 'string') bValue = bValue.toLowerCase()
+
+      if (aValue < bValue) return direction === 'asc' ? -1 : 1
+      if (aValue > bValue) return direction === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return result
+  })
+
+  const activeSprints = computed(() => sprints.value.filter((s) => s.status === 'active'))
+
+  const draftSprints = computed(() => sprints.value.filter((s) => s.status === 'draft'))
+
+  const completedSprints = computed(() => sprints.value.filter((s) => s.status === 'completed'))
+
+  const sprintsByStatus = computed(() => ({
+    draft: draftSprints.value,
+    active: activeSprints.value,
+    completed: completedSprints.value,
+  }))
+
+  const stats = computed(() => ({
+    total: sprints.value.length,
+    draft: draftSprints.value.length,
+    active: activeSprints.value.length,
+    completed: completedSprints.value.length,
+  }))
+
+  // Actions
+  async function fetchSprints() {
+    try {
+      loading.value = true
+      error.value = null
+      sprints.value = await apiClient.getSprints()
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch sprints'
+      console.error('Failed to fetch sprints:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchSprint(id: number) {
+    try {
+      loading.value = true
+      error.value = null
+      const sprint = await apiClient.getSprint(id)
+      selectedSprint.value = sprint
+      return sprint
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch sprint'
+      console.error('Failed to fetch sprint:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function createSprint(sprintData: Omit<Sprint, 'sprint_id'>) {
+    try {
+      loading.value = true
+      error.value = null
+      const newSprint = await apiClient.createSprint(sprintData)
+      sprints.value.push(newSprint)
+      return newSprint
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create sprint'
+      console.error('Failed to create sprint:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateSprint(id: number, sprintData: Partial<Sprint>) {
+    try {
+      loading.value = true
+      error.value = null
+      const updatedSprint = await apiClient.updateSprint(id, sprintData)
+
+      const index = sprints.value.findIndex((s) => s.sprint_id === id)
+      if (index !== -1) {
+        sprints.value[index] = updatedSprint
+      }
+
+      if (selectedSprint.value?.sprint_id === id) {
+        selectedSprint.value = updatedSprint
+      }
+
+      return updatedSprint
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update sprint'
+      console.error('Failed to update sprint:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteSprint(id: number) {
+    try {
+      loading.value = true
+      error.value = null
+      await apiClient.deleteSprint(id)
+
+      sprints.value = sprints.value.filter((s) => s.sprint_id !== id)
+
+      if (selectedSprint.value?.sprint_id === id) {
+        selectedSprint.value = null
+        availability.value = null
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to delete sprint'
+      console.error('Failed to delete sprint:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchAvailability(sprintId: number) {
+    try {
+      loading.value = true
+      error.value = null
+      availability.value = await apiClient.getSprintAvailability(sprintId)
+      return availability.value
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch availability'
+      console.error('Failed to fetch availability:', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function updateAvailabilityOverride(
+    sprintId: number,
+    memberId: number,
+    day: string,
+    state: 'available' | 'out' | 'half' | null,
+    reason?: string,
+  ) {
+    try {
+      await apiClient.updateAvailabilityOverride(sprintId, memberId, day, { state, reason })
+
+      // Refresh availability data
+      await fetchAvailability(sprintId)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update override'
+      console.error('Failed to update override:', err)
+      throw err
+    }
+  }
+
+  function selectSprint(sprint: Sprint | null) {
+    selectedSprint.value = sprint
+    if (!sprint) {
+      availability.value = null
+    }
+  }
+
+  function setFilter(newFilter: Partial<SprintFilter>) {
+    filter.value = { ...filter.value, ...newFilter }
+  }
+
+  function setSorting(field: string, direction: 'asc' | 'desc') {
+    sortOptions.value = { field, direction }
+  }
+
+  function clearError() {
+    error.value = null
+  }
+
+  function clearAvailability() {
+    availability.value = null
+  }
+
+  return {
+    // State
+    sprints,
+    selectedSprint,
+    availability,
+    loading,
+    error,
+    filter,
+    sortOptions,
+
+    // Getters
+    filteredSprints,
+    activeSprints,
+    draftSprints,
+    completedSprints,
+    sprintsByStatus,
+    stats,
+
+    // Actions
+    fetchSprints,
+    fetchSprint,
+    createSprint,
+    updateSprint,
+    deleteSprint,
+    fetchAvailability,
+    updateAvailabilityOverride,
+    selectSprint,
+    setFilter,
+    setSorting,
+    clearError,
+    clearAvailability,
+  }
+})
