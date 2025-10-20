@@ -54,6 +54,15 @@ PYTHONPATH=$(pwd) .venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0
 # Alle Services starten (MySQL + Backend + optional Frontend)
 docker compose up -d
 
+# Database Migrations und Seed-Daten (beim ersten Start)
+docker compose exec api alembic upgrade head
+docker compose exec api python seed.py
+
+# Services einzeln starten
+docker compose up -d db        # Nur MySQL
+docker compose up -d api       # MySQL + Backend
+docker compose up -d fe        # Alle Services inkl. Frontend
+
 # Logs verfolgen
 docker compose logs -f db      # MySQL Logs
 docker compose logs -f api     # Backend Logs
@@ -69,6 +78,18 @@ docker compose down -v
 ### API Health Check
 Nach dem Start ist die API unter http://localhost:8000/health erreichbar.
 
+### API Endpoints testen
+```bash
+# Health Check
+curl http://localhost:8000/health
+
+# Members anzeigen
+curl http://localhost:8000/api/v1/members/
+
+# Sprint Availability Matrix
+curl "http://localhost:8000/api/v1/sprints/1/availability"
+```
+
 ## Architektur
 
 - **Timezone**: Europe/Berlin
@@ -76,8 +97,30 @@ Nach dem Start ist die API unter http://localhost:8000/health erreichbar.
 - **Scope**: Single Team mit Sprint-basierter Kapazitätsplanung
 - **Features**: Availability-Grid mit Overrides, PTO-Management, Feiertagsberechnung nach Region
 
-## Nächste Schritte
+## Status & Nächste Schritte
 
-1. Backend-Skeleton implementieren (`task 01_backend_skeleton`)
-2. SQLAlchemy-Modelle erstellen (`task 02_backend_models_migrations`)
-3. Frontend-Scaffold aufbauen (`task 07_frontend_scaffold`)
+### ✅ Abgeschlossen
+- **Task 00**: Projektstruktur & Root-Dateien
+- **Task 01**: FastAPI Skeleton + Settings + DB Session  
+- **Task 02**: SQLAlchemy-Modelle + Alembic-Migration
+- **Task 03**: Availability-Logik & REST-Endpunkte
+- **Task 04**: Validierungen & Guards
+- **Task 05**: Pytest Test Suite (60% Coverage, 25/25 Tests PASSED)
+- **Task 06**: Docker Compose für MySQL + Backend ✅
+
+### 🎯 Als Nächstes
+- **Task 07**: Vue 3 Frontend Scaffold + PrimeVue + Pinia + Router
+- **Task 08**: Sprint-Flow UI (Draft → Active)
+- **Task 09**: Availability Grid (Abhaken-Ansicht)
+
+### 🚀 Quick Start mit Docker
+```bash
+# Komplettes Setup in 3 Schritten:
+docker compose up -d
+docker compose exec api alembic upgrade head  
+docker compose exec api python seed.py
+
+# API testen:
+curl http://localhost:8000/health
+curl http://localhost:8000/api/v1/members/
+```
