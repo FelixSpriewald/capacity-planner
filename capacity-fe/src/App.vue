@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Navigation from '@/components/Navigation.vue'
+import Toast from 'primevue/toast'
 </script>
 
 <template>
@@ -8,6 +9,7 @@ import Navigation from '@/components/Navigation.vue'
     <main class="main-content">
       <RouterView />
     </main>
+    <Toast />
   </div>
 </template>
 

@@ -57,13 +57,13 @@ const navigationItems = computed<NavigationItem[]>(() => [
     label: 'Members',
     icon: 'pi-users',
     route: '/members',
-    badge: membersStore.stats.active.toString(),
+    badge: membersStore.stats?.active ? membersStore.stats.active.toString() : undefined,
   },
   {
     label: 'Sprints',
     icon: 'pi-calendar',
     route: '/sprints',
-    badge: sprintsStore.stats.active.toString(),
+    badge: sprintsStore.stats?.active ? sprintsStore.stats.active.toString() : undefined,
   },
   {
     label: 'Demo',

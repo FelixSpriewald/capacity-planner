@@ -34,7 +34,7 @@
           </div>
 
           <div v-else class="members-grid">
-            <div v-for="member in members" :key="member.member_id" class="member-card">
+            <div v-for="member in members" :key="member.member_id" class="member-card" :class="{ 'inactive-member': !member.active }">
               <div class="member-header">
                 <div class="member-avatar">
                   <i class="pi pi-user"></i>
@@ -75,10 +75,24 @@
                   v-tooltip="'Member bearbeiten'"
                 />
                 <Button
+                  v-if="!member.active"
+                  icon="pi pi-check"
+                  class="p-button-text p-button-sm p-button-success"
+                  @click="confirmReactivateMember(member)"
+                  v-tooltip="'Member reaktivieren'"
+                />
+                <Button
+                  v-if="member.active"
                   icon="pi pi-calendar"
                   class="p-button-text p-button-sm"
                   @click="managePTO(member)"
                   v-tooltip="'PTO verwalten'"
+                />
+                <Button
+                  icon="pi pi-trash"
+                  class="p-button-text p-button-sm p-button-danger"
+                  @click="confirmDeleteMember(member)"
+                  v-tooltip="'Member löschen'"
                 />
               </div>
             </div>
@@ -95,7 +109,7 @@
               <i class="pi pi-users"></i>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ stats.totalMembers }}</div>
+              <div class="stat-value">{{ stats.total }}</div>
               <div class="stat-label">Gesamt Members</div>
             </div>
           </div>
@@ -105,7 +119,7 @@
               <i class="pi pi-check-circle"></i>
             </div>
             <div class="stat-content">
-              <div class="stat-value">{{ stats.activeMembers }}</div>
+              <div class="stat-value">{{ stats.active }}</div>
               <div class="stat-label">Aktive Members</div>
             </div>
           </div>
@@ -132,84 +146,195 @@
         </div>
       </div>
     </div>
+
+    <!-- Member Dialog -->
+    <MemberForm
+      :visible="showMemberDialog"
+      :member="selectedMemberForEdit"
+      :loading="dialogLoading"
+      @update:visible="showMemberDialog = $event"
+      @submit="handleMemberSubmit"
+    />
+
+    <!-- Delete Confirmation Dialog -->
+    <ConfirmDialog></ConfirmDialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import ProgressSpinner from 'primevue/progressspinner'
+import ConfirmDialog from 'primevue/confirmdialog'
+import MemberForm from '@/components/forms/MemberForm.vue'
+import { useMembersStore } from '@/stores/members'
+import type { Member } from '@/types'
 
-interface Member {
-  member_id: number
-  name: string
-  employment_ratio: number
-  region_code: string
-  active: boolean
-}
+const membersStore = useMembersStore()
+const toast = useToast()
+const confirm = useConfirm()
 
-const loading = ref(true)
-const members = ref<Member[]>([])
+// Dialog state
+const showMemberDialog = ref(false)
+const selectedMemberForEdit = ref<Member | null>(null)
+const dialogLoading = ref(false)
+
+// Computed from store
+const loading = computed(() => membersStore.loading)
+const members = computed(() => membersStore.members)
+const stats = computed(() => membersStore.stats)
 
 const createMember = () => {
-  console.log('Neues Member erstellen...')
+  selectedMemberForEdit.value = null
+  showMemberDialog.value = true
 }
 
 const viewMember = (member: Member) => {
+  // TODO: Navigate to member detail view
   console.log('Member anzeigen:', member.name)
 }
 
 const editMember = (member: Member) => {
-  console.log('Member bearbeiten:', member.name)
+  selectedMemberForEdit.value = member
+  showMemberDialog.value = true
 }
 
 const managePTO = (member: Member) => {
+  // TODO: Navigate to PTO management
   console.log('PTO verwalten für:', member.name)
+}
+
+const confirmDeleteMember = (member: Member) => {
+  confirm.require({
+    message: `Möchten Sie das Member "${member.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+    header: 'Member löschen',
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: {
+      label: 'Abbrechen',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Löschen',
+      severity: 'danger'
+    },
+    accept: () => {
+      deleteMember(member)
+    }
+  })
+}
+
+const deleteMember = async (member: Member) => {
+  try {
+    await membersStore.deleteMember(member.member_id)
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolgreich',
+      detail: `Member "${member.name}" wurde gelöscht`,
+      life: 3000
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: error instanceof Error ? error.message : 'Fehler beim Löschen des Members',
+      life: 5000
+    })
+  }
+}
+
+const confirmReactivateMember = (member: Member) => {
+  confirm.require({
+    message: `Möchten Sie das Member "${member.name}" wieder aktivieren?`,
+    header: 'Member reaktivieren',
+    icon: 'pi pi-check-circle',
+    rejectProps: {
+      label: 'Abbrechen',
+      severity: 'secondary',
+      outlined: true
+    },
+    acceptProps: {
+      label: 'Reaktivieren',
+      severity: 'success'
+    },
+    accept: () => {
+      reactivateMember(member)
+    }
+  })
+}
+
+const reactivateMember = async (member: Member) => {
+  try {
+    await membersStore.reactivateMember(member.member_id)
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolgreich',
+      detail: `Member "${member.name}" wurde reaktiviert`,
+      life: 3000
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: error instanceof Error ? error.message : 'Fehler beim Reaktivieren des Members',
+      life: 5000
+    })
+  }
+}
+
+const handleMemberSubmit = async (memberData: {
+  name: string
+  employment_ratio: number
+  region_code: string
+  active: boolean
+}) => {
+  try {
+    dialogLoading.value = true
+
+    if (selectedMemberForEdit.value) {
+      // Edit existing member
+      await membersStore.updateMember(selectedMemberForEdit.value.member_id, memberData)
+      toast.add({
+        severity: 'success',
+        summary: 'Erfolgreich',
+        detail: 'Member wurde aktualisiert',
+        life: 3000
+      })
+    } else {
+      // Create new member
+      await membersStore.createMember(memberData)
+      toast.add({
+        severity: 'success',
+        summary: 'Erfolgreich',
+        detail: 'Neues Member wurde hinzugefügt',
+        life: 3000
+      })
+    }
+
+    showMemberDialog.value = false
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: error instanceof Error ? error.message : 'Unbekannter Fehler',
+      life: 5000
+    })
+  } finally {
+    dialogLoading.value = false
+  }
 }
 
 const formatEmploymentRatio = (ratio: number) => {
   return `${Math.round(ratio * 100)}%`
 }
 
-const stats = computed(() => {
-  const totalMembers = members.value.length
-  const activeMembers = members.value.filter((m) => m.active).length
-  const totalCapacity = members.value
-    .filter((m) => m.active)
-    .reduce((sum, m) => sum + m.employment_ratio * 40, 0) // 40h Vollzeit
-  const uniqueRegions = new Set(members.value.map((m) => m.region_code)).size
-
-  return {
-    totalMembers,
-    activeMembers,
-    totalCapacity: Math.round(totalCapacity),
-    uniqueRegions,
-  }
-})
-
 onMounted(async () => {
-  // Simuliere API-Call
-  setTimeout(() => {
-    members.value = [
-      {
-        member_id: 1,
-        name: 'Alice Schmidt',
-        employment_ratio: 1,
-        region_code: 'DE-NW',
-        active: true,
-      },
-      {
-        member_id: 2,
-        name: 'Bogdan Petrov',
-        employment_ratio: 1,
-        region_code: 'UA',
-        active: true,
-      },
-    ]
-    loading.value = false
-  }, 800)
+  // Load members from store (will use mock data if API not available)
+  await membersStore.fetchMembers()
 })
 </script>
 
@@ -282,6 +407,17 @@ onMounted(async () => {
   border-color: #3498db;
   box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
   transform: translateY(-2px);
+}
+
+.member-card.inactive-member {
+  opacity: 0.7;
+  border-color: #bdc3c7;
+  background: #f8f9fa;
+}
+
+.member-card.inactive-member:hover {
+  border-color: #95a5a6;
+  box-shadow: 0 2px 8px rgba(149, 165, 166, 0.15);
 }
 
 .member-header {

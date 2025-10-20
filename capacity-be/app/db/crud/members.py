@@ -8,13 +8,18 @@ from app.schemas.schemas import MemberCreate
 
 
 def get_members(db: Session, skip: int = 0, limit: int = 100) -> List[Member]:
-    """Alle Members abrufen"""
+    """Alle aktiven Members abrufen"""
     return db.query(Member).filter(Member.active == True).offset(skip).limit(limit).all()
 
 
+def get_all_members(db: Session, skip: int = 0, limit: int = 100) -> List[Member]:
+    """Alle Members abrufen (auch inaktive)"""
+    return db.query(Member).offset(skip).limit(limit).all()
+
+
 def get_member(db: Session, member_id: int) -> Optional[Member]:
-    """Ein Member by ID"""
-    return db.query(Member).filter(Member.member_id == member_id, Member.active == True).first()
+    """Ein Member by ID (auch inaktive für Updates)"""
+    return db.query(Member).filter(Member.member_id == member_id).first()
 
 
 def create_member(db: Session, member: MemberCreate) -> Member:

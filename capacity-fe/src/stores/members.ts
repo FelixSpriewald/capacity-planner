@@ -74,11 +74,11 @@ export const useMembersStore = defineStore('members', () => {
   }))
 
   // Actions
-  async function fetchMembers() {
+  async function fetchMembers(includeInactive: boolean = true) {
     try {
       loading.value = true
       error.value = null
-      members.value = await apiClient.getMembers()
+      members.value = await apiClient.getMembers(includeInactive)
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch members'
       console.error('Failed to fetch members:', err)
@@ -107,6 +107,7 @@ export const useMembersStore = defineStore('members', () => {
     try {
       loading.value = true
       error.value = null
+
       const newMember = await apiClient.createMember(memberData)
       members.value.push(newMember)
       return newMember
@@ -123,7 +124,22 @@ export const useMembersStore = defineStore('members', () => {
     try {
       loading.value = true
       error.value = null
-      const updatedMember = await apiClient.updateMember(id, memberData)
+
+      // Get current member data to merge with updates
+      const currentMember = members.value.find(m => m.member_id === id)
+      if (!currentMember) {
+        throw new Error('Member not found in local state')
+      }
+
+      // Merge partial updates with existing data to create complete member object
+      const completeData = {
+        name: memberData.name ?? currentMember.name,
+        employment_ratio: memberData.employment_ratio ?? currentMember.employment_ratio,
+        region_code: memberData.region_code ?? currentMember.region_code,
+        active: memberData.active ?? currentMember.active
+      }
+
+      const updatedMember = await apiClient.updateMember(id, completeData)
 
       const index = members.value.findIndex((m) => m.member_id === id)
       if (index !== -1) {
@@ -138,6 +154,13 @@ export const useMembersStore = defineStore('members', () => {
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update member'
       console.error('Failed to update member:', err)
+
+      // If member not found, refresh the members list
+      if (err instanceof Error && err.message.includes('404')) {
+        console.log('Member not found, refreshing members list...')
+        await fetchMembers()
+      }
+
       throw err
     } finally {
       loading.value = false
@@ -148,6 +171,7 @@ export const useMembersStore = defineStore('members', () => {
     try {
       loading.value = true
       error.value = null
+
       await apiClient.deleteMember(id)
 
       members.value = members.value.filter((m) => m.member_id !== id)
@@ -176,6 +200,15 @@ export const useMembersStore = defineStore('members', () => {
     sortOptions.value = { field, direction }
   }
 
+  async function reactivateMember(id: number) {
+    const member = members.value.find(m => m.member_id === id)
+    if (!member) {
+      throw new Error('Member nicht gefunden')
+    }
+
+    return updateMember(id, { active: true })
+  }
+
   function clearError() {
     error.value = null
   }
@@ -201,6 +234,7 @@ export const useMembersStore = defineStore('members', () => {
     createMember,
     updateMember,
     deleteMember,
+    reactivateMember,
     selectMember,
     setFilter,
     setSorting,

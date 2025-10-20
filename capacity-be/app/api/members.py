@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.base import get_db
-from app.db.crud.members import get_members, get_member, create_member, update_member, delete_member
+from app.db.crud.members import get_members, get_all_members, get_member, create_member, update_member, delete_member
 from app.schemas.schemas import MemberResponse, MemberCreate
 from app.services.validation import ValidationService, ValidationError
 
@@ -16,9 +16,12 @@ MEMBER_NOT_FOUND = "Member not found"
 
 
 @router.get("/", response_model=List[MemberResponse])
-def list_members(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Alle aktiven Members abrufen"""
-    members = get_members(db, skip=skip, limit=limit)
+def list_members(skip: int = 0, limit: int = 100, include_inactive: bool = False, db: Session = Depends(get_db)):
+    """Alle Members abrufen (optional auch inaktive)"""
+    if include_inactive:
+        members = get_all_members(db, skip=skip, limit=limit)
+    else:
+        members = get_members(db, skip=skip, limit=limit)
     return members
 
 

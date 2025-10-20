@@ -40,8 +40,9 @@ class ApiClient {
   }
 
   // Members API
-  async getMembers(): Promise<Member[]> {
-    return this.request<Member[]>('/api/v1/members/')
+  async getMembers(includeInactive: boolean = false): Promise<Member[]> {
+    const params = includeInactive ? '?include_inactive=true' : ''
+    return this.request<Member[]>(`/api/v1/members/${params}`)
   }
 
   async getMember(id: number): Promise<Member> {
@@ -55,7 +56,7 @@ class ApiClient {
     })
   }
 
-  async updateMember(id: number, member: Partial<Member>): Promise<Member> {
+  async updateMember(id: number, member: Omit<Member, 'member_id'>): Promise<Member> {
     return this.request<Member>(`/api/v1/members/${id}`, {
       method: 'PUT',
       body: JSON.stringify(member),
