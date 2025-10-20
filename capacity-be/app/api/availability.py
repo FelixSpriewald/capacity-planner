@@ -35,48 +35,6 @@ def get_sprint_availability(sprint_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/{sprint_id}/availability")
 def patch_sprint_availability(
-    sprint_id: int, 
-    override_data: AvailabilityOverridePatch,
-    db: Session = Depends(get_db)
-):
-    """Einzelne Availability-Override setzen/löschen"""
-    service = AvailabilityService(db)
-    validator = ValidationService(db)
-    
-    try:
-        # Sprint existiert prüfen
-        availability = service.get_sprint_availability(sprint_id)
-        if not availability:
-            raise HTTPException(status_code=404, detail=SPRINT_NOT_FOUND)
-        
-        # Erweiterte Validierungen
-        validator.validate_availability_override_date(sprint_id, override_data.day)
-        validator.validate_member_in_roster(sprint_id, override_data.member_id)
-        
-        # Override setzen/löschen
-        success = service.set_availability_override(
-            sprint_id=sprint_id,
-            member_id=override_data.member_id,
-            day=override_data.day,
-            state=override_data.state,
-            reason=override_data.reason
-        )
-        
-        if not success:
-            raise HTTPException(status_code=400, detail="Failed to update override")
-        
-        return {"message": "Override updated successfully"}
-        
-    except ValidationError as e:
-        raise HTTPException(status_code=422, detail=e.message)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.patch("/{sprint_id}/availability")
-def patch_sprint_availability(
     sprint_id: int,
     override_data: AvailabilityOverridePatch,
     db: Session = Depends(get_db)
