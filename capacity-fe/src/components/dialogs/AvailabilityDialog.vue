@@ -308,11 +308,9 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
 </script>
 
 <style scoped>
-.availability-dialog {
-  .p-dialog-content {
-    padding: 0;
-    height: 100%;
-  }
+.availability-dialog :deep(.p-dialog-content) {
+  padding: 0;
+  height: 100%;
 }
 
 .availability-content {
@@ -328,14 +326,29 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 2rem;
+  padding: 3rem 2rem;
   text-align: center;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+.loading-container p,
+.empty-container h3,
+.empty-container p {
+  color: #6b7280;
+  margin: 0.5rem 0;
+}
+
+.empty-container h3 {
+  color: #374151;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .empty-icon {
   font-size: 4rem;
-  color: var(--surface-400);
-  margin-bottom: 1rem;
+  color: #9ca3af;
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
 }
 
 .availability-main {
@@ -348,45 +361,67 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  background: var(--surface-50);
-  border-bottom: 1px solid var(--surface-border);
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .filters {
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .filter-item label {
   cursor: pointer;
   font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.filter-item:hover {
+  background: #f9fafb;
+  border-color: #3b82f6;
 }
 
 .summary {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
   background: white;
-  border-radius: 6px;
-  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
   font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.summary-item:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .summary-item i {
-  color: var(--primary-color);
+  color: #3b82f6;
+  font-size: 1rem;
 }
 
 .legend-bar {
@@ -394,14 +429,17 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   align-items: center;
   gap: 2rem;
   padding: 1rem 1.5rem;
-  background: var(--surface-100);
-  border-bottom: 1px solid var(--surface-border);
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
   flex-wrap: wrap;
+  min-height: 60px;
 }
 
 .legend-title {
   font-weight: 600;
-  color: var(--text-color);
+  color: #374151;
+  font-size: 0.875rem;
+  margin-right: 0.5rem;
 }
 
 .legend-items {
@@ -414,7 +452,12 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: white;
+  border: 1px solid #f3f4f6;
 }
 
 .legend-hint {
@@ -422,138 +465,180 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   align-items: center;
   gap: 0.5rem;
   font-size: 0.75rem;
-  color: var(--text-color-secondary);
-  background: var(--blue-50);
+  color: #1e40af;
+  background: #dbeafe;
   padding: 0.5rem 1rem;
-  border-radius: 4px;
-  border-left: 3px solid var(--blue-500);
+  border-radius: 6px;
+  border-left: 3px solid #3b82f6;
   margin-left: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .status-indicator {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  flex-shrink: 0;
 }
 
-.status-indicator.available { background: var(--green-500); }
-.status-indicator.half { background: var(--orange-500); }
-.status-indicator.unavailable { background: var(--red-500); }
-.status-indicator.weekend { background: var(--surface-400); }
-.status-indicator.holiday { background: var(--purple-500); }
+.status-indicator.available { 
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+.status-indicator.half { 
+  background: linear-gradient(90deg, #f59e0b 50%, #fbbf24 50%);
+}
+.status-indicator.unavailable { 
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+.status-indicator.weekend { 
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+}
+.status-indicator.holiday { 
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
 
 .grid-container {
   flex: 1;
   overflow: auto;
-  padding: 1rem;
+  padding: 1.5rem;
+  background: #f9fafb;
 }
 
 .grid-wrapper {
-  border: 1px solid var(--surface-border);
-  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+  background: white;
 }
 
 .availability-grid {
   width: 100%;
   border-collapse: collapse;
   background: white;
+  font-size: 0.875rem;
 }
 
 .availability-grid th,
 .availability-grid td {
   padding: 0;
-  border: 1px solid var(--surface-border);
+  border: 1px solid #f3f4f6;
   text-align: center;
   vertical-align: middle;
+  transition: all 0.2s ease;
 }
 
 .member-header,
 .member-cell {
-  min-width: 180px;
+  min-width: 200px;
   text-align: left;
-  padding: 1rem;
-  background: var(--surface-50);
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   position: sticky;
   left: 0;
   z-index: 10;
+  border-right: 2px solid #e2e8f0;
+  font-weight: 500;
 }
 
 .day-header {
-  min-width: 60px;
-  padding: 0.75rem 0.5rem;
-  background: var(--surface-100);
+  min-width: 70px;
+  padding: 1rem 0.75rem;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  font-weight: 600;
+  color: #374151;
 }
 
 .day-header.weekend {
-  background: var(--orange-100);
-  color: var(--orange-800);
+  background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%);
+  color: #92400e;
 }
 
 .summary-header,
 .summary-cell {
-  min-width: 100px;
-  padding: 1rem;
-  background: var(--surface-50);
+  min-width: 120px;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   position: sticky;
   right: 0;
   z-index: 10;
+  border-left: 2px solid #e2e8f0;
+  font-weight: 500;
 }
 
 .day-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.375rem;
+  align-items: center;
 }
 
 .day-name {
-  font-weight: 600;
-  font-size: 0.875rem;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 .day-date {
   font-size: 0.75rem;
-  opacity: 0.8;
+  font-weight: 500;
+  opacity: 0.9;
+  line-height: 1;
 }
 
 .member-info {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
 .member-name {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  color: #1f2937;
+  line-height: 1.2;
 }
 
 .member-allocation {
-  font-size: 0.75rem;
-  color: var(--text-color-secondary);
-  background: var(--primary-100);
-  color: var(--primary-800);
-  padding: 0.125rem 0.5rem;
-  border-radius: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #1e40af;
+  padding: 0.25rem 0.75rem;
+  border-radius: 16px;
   display: inline-block;
   width: fit-content;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .availability-cell {
-  padding: 0.75rem;
+  padding: 1rem 0.75rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .availability-cell:hover {
-  background: var(--primary-50);
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  transform: scale(1.02);
 }
 
 .availability-cell.weekend,
 .availability-cell.holiday {
   cursor: not-allowed;
-  opacity: 0.7;
+  opacity: 0.6;
+  background: #f9fafb;
+}
+
+.availability-cell.weekend:hover,
+.availability-cell.holiday:hover {
+  transform: none;
+  background: #f9fafb;
 }
 
 .cell-content {
@@ -563,65 +648,89 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
 }
 
 .status-dot {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  transition: all 0.2s ease;
+  border: 3px solid white;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  transition: all 0.3s ease;
+  position: relative;
 }
 
 .availability-cell:hover .status-dot {
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2), 0 6px 12px rgba(0,0,0,0.25);
 }
 
-.status-dot.available { background: var(--green-500); }
-.status-dot.half { background: var(--orange-500); }
-.status-dot.unavailable { background: var(--red-500); }
-.status-dot.weekend { background: var(--surface-400); }
-.status-dot.holiday { background: var(--purple-500); }
-.status-dot.unknown { background: var(--surface-300); }
+.status-dot.available { 
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.status-dot.half { 
+  background: linear-gradient(90deg, #f59e0b 50%, #fbbf24 50%);
+}
+
+.status-dot.unavailable { 
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.status-dot.weekend { 
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+}
+
+.status-dot.holiday { 
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.status-dot.unknown { 
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+}
 
 .member-summary,
 .team-summary {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.375rem;
   align-items: center;
 }
 
 .hours {
-  font-weight: 600;
-  color: var(--green-600);
-  font-size: 0.875rem;
+  font-weight: 700;
+  color: #059669;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .days {
-  font-size: 0.75rem;
-  color: var(--text-color-secondary);
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-weight: 500;
 }
 
 .totals-row {
-  background: var(--surface-100);
-  font-weight: 600;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  font-weight: 700;
 }
 
 .totals-row td {
-  border-top: 2px solid var(--surface-300);
+  border-top: 3px solid #3b82f6;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
 }
 
 .totals-label {
-  background: var(--surface-100) !important;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+  color: #1f2937;
 }
 
 .total-cell {
-  background: var(--surface-100);
-  padding: 0.75rem;
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  padding: 1rem 0.75rem;
 }
 
 .day-total {
-  font-weight: 600;
-  color: var(--primary-color);
+  font-weight: 700;
+  color: #1e40af;
+  font-size: 1rem;
 }
 
 /* Responsive */
