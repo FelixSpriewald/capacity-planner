@@ -128,6 +128,7 @@
       :loading="availabilityLoading"
       :availability="availabilityData"
       @toggle-availability="handleToggleAvailability"
+      @open-roster="handleOpenRosterFromAvailability"
     />
   </div>
 </template>
@@ -211,7 +212,7 @@ const handleSprintSubmit = async (formData: SprintFormData) => {
     formLoading.value = true
 
     if (editingSprint.value) {
-      const updatedSprint = await sprintsStore.updateSprint(editingSprint.value.sprint_id, formData)
+      await sprintsStore.updateSprint(editingSprint.value.sprint_id, formData)
       await sprintsStore.fetchSprints()
       toast.add({
         severity: 'success',
@@ -388,7 +389,7 @@ const showRoster = async () => {
 
 const handleRosterDialogClose = async (visible: boolean) => {
   showRosterDialog.value = visible
-
+  
   // When dialog is closed, refresh sprint data to update member count
   if (!visible) {
     try {
@@ -399,35 +400,63 @@ const handleRosterDialogClose = async (visible: boolean) => {
   }
 }
 
+const handleOpenRosterFromAvailability = () => {
+  showAvailabilityDialog.value = false
+  showRoster()
+}
+
 const handleToggleAvailability = async (memberId: number, date: string, currentDay: DayObject) => {
   if (!selectedSprint.value) return
 
   try {
-    const currentState = currentDay.override_state as string
-    let newState: string
-
-    if (currentState === 'available' || (!currentState && currentDay.final_state === 'available')) {
-      newState = 'half'
-    } else if (currentState === 'half' || (!currentState && currentDay.final_state === 'half')) {
-      newState = 'out'
-    } else {
-      newState = 'available'
+    availabilityLoading.value = true
+    
+    const currentState = currentDay.override_state as string || currentDay.final_state as string
+    let newState: 'available' | 'half' | null = 'available'
+    
+    switch (currentState) {
+      case 'available':
+        newState = 'half'
+        break
+      case 'half':
+        newState = null // This will set to 'out' via the API
+        break
+      case 'out':
+      case null:
+      default:
+        newState = 'available'
+        break
     }
 
-    // API call would go here
-    console.log('Toggle availability:', { memberId, date, newState })
+    // Use the store to update availability
+    await sprintsStore.updateAvailabilityOverride(
+      selectedSprint.value.sprint_id,
+      memberId,
+      date,
+      newState,
+      'Manual override'
+    )
 
-    // Reload data
+    // Reload availability data
     const data = await api.getSprintAvailability(selectedSprint.value.sprint_id)
     availabilityData.value = data
-  } catch (error) {
-    console.error('Error updating availability:', error)
+
+    toast.add({
+      severity: 'success',
+      summary: 'Erfolg',
+      detail: 'Verfügbarkeit wurde aktualisiert',
+      life: 2000
+    })
+  } catch (err) {
+    console.error('Error updating availability:', err)
     toast.add({
       severity: 'error',
       summary: 'Fehler',
       detail: 'Fehler beim Aktualisieren der Verfügbarkeit',
       life: 3000
     })
+  } finally {
+    availabilityLoading.value = false
   }
 }
 
@@ -471,7 +500,8 @@ onMounted(async () => {
       sprintsStore.fetchSprints(),
       membersStore.fetchMembers()
     ])
-  } catch (error) {
+  } catch (err) {
+    console.error('Error loading data:', err)
     toast.add({
       severity: 'error',
       summary: 'Fehler',
