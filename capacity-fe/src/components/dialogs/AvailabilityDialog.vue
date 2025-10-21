@@ -21,10 +21,10 @@
         <i class="pi pi-users empty-icon"></i>
         <h3>Keine Team-Mitglieder</h3>
         <p>Diesem Sprint sind noch keine Mitglieder zugeordnet.</p>
-        <Button 
-          label="Team Roster öffnen" 
-          icon="pi pi-users" 
-          @click="$emit('open-roster')" 
+        <Button
+          label="Team Roster öffnen"
+          icon="pi pi-users"
+          @click="$emit('open-roster')"
           class="p-button-outlined"
         />
       </div>
@@ -34,56 +34,43 @@
         <!-- Controls -->
         <div class="controls-bar">
           <div class="filters">
-            <div class="filter-item">
-              <Checkbox v-model="hideWeekends" binary />
-              <label>Wochenenden ausblenden</label>
+            <!-- Wochenenden werden automatisch ausgeblendet -->
+          </div>
+
+          <div class="legend-inline">
+            <div class="legend-items-compact">
+              <div class="legend-item-compact">
+                <div class="status-indicator available"></div>
+                <span>Verfügbar</span>
+              </div>
+              <div class="legend-item-compact">
+                <div class="status-indicator half"></div>
+                <span>Halbtags</span>
+              </div>
+              <div class="legend-item-compact">
+                <div class="status-indicator unavailable"></div>
+                <span>Nicht verfügbar</span>
+              </div>
+              <div class="legend-item-compact">
+                <div class="status-indicator holiday"></div>
+                <span>Feiertag</span>
+              </div>
             </div>
           </div>
-          
+
           <div class="summary">
             <div class="summary-item">
               <i class="pi pi-users"></i>
               <span>{{ availability.members.length }} Mitglieder</span>
             </div>
             <div class="summary-item">
-              <i class="pi pi-clock"></i>
-              <span>{{ availability.team_summary?.total_hours || 0 }}h</span>
-            </div>
-            <div class="summary-item">
               <i class="pi pi-calendar"></i>
               <span>{{ visibleDays.length }} Tage</span>
             </div>
-          </div>
-        </div>
-
-        <!-- Legend -->
-        <div class="legend-bar">
-          <div class="legend-title">Status-Legende:</div>
-          <div class="legend-items">
-            <div class="legend-item">
-              <div class="status-indicator available"></div>
-              <span>Verfügbar</span>
+            <div class="summary-item">
+              <i class="pi pi-calendar"></i>
+              <span>{{ availability.sum_days_team || availability.team_summary?.total_days || 0 }} Gesamt-Tage</span>
             </div>
-            <div class="legend-item">
-              <div class="status-indicator half"></div>
-              <span>Halbtags</span>
-            </div>
-            <div class="legend-item">
-              <div class="status-indicator unavailable"></div>
-              <span>Nicht verfügbar</span>
-            </div>
-            <div class="legend-item">
-              <div class="status-indicator weekend"></div>
-              <span>Wochenende</span>
-            </div>
-            <div class="legend-item">
-              <div class="status-indicator holiday"></div>
-              <span>Feiertag</span>
-            </div>
-          </div>
-          <div class="legend-hint">
-            <i class="pi pi-info-circle"></i>
-            <span>Klicken Sie auf eine Zelle um die Verfügbarkeit zu ändern</span>
           </div>
         </div>
 
@@ -95,11 +82,14 @@
               <thead>
                 <tr>
                   <th class="member-header">Team-Mitglied</th>
-                  <th 
-                    v-for="day in visibleDays" 
+                  <th
+                    v-for="day in visibleDays"
                     :key="day.date"
                     class="day-header"
-                    :class="{ 'weekend': day.isWeekend }"
+                    :class="{
+                      'weekend': day.isWeekend,
+                      'weekend-separator': day.showWeekendSeparator
+                    }"
                   >
                     <div class="day-info">
                       <div class="day-name">{{ day.dayName }}</div>
@@ -115,31 +105,33 @@
                 <tr v-for="member in availability.members" :key="member.member_id" class="member-row">
                   <td class="member-cell">
                     <div class="member-info">
-                      <div class="member-name">{{ member.member_name }}</div>
-                      <div class="member-allocation">{{ Math.round(member.allocation * 100) }}%</div>
+                      <div class="member-name">{{ member.member_name || member.name || `Member ${member.member_id}` }}</div>
+                      <div class="member-allocation">{{ Math.round((member.allocation || 1) * 100) }}%</div>
                     </div>
                   </td>
-                  
-                  <td 
-                    v-for="day in getVisibleDaysForMember(member)" 
-                    :key="day.day"
+
+                  <td
+                    v-for="day in visibleDays"
+                    :key="`${member.member_id}-${day.date}`"
                     class="availability-cell"
-                    :class="getStatusClass(day)"
-                    @click="handleCellClick(member.member_id, day.day, day)"
+                    :class="{
+                      'weekend': day.isWeekend,
+                      'weekend-separator': day.showWeekendSeparator,
+                      'clickable': getMemberDay(member, day.date)?.final_state !== 'weekend' && getMemberDay(member, day.date)?.final_state !== 'holiday'
+                    }"
+                    @click="getMemberDay(member, day.date) && handleCellClick(member.member_id, day.date, getMemberDay(member, day.date))"
+                    :title="getMemberDay(member, day.date) ? getTooltip(member.member_name || member.name || `Member ${member.member_id}`, getMemberDay(member, day.date)) : ''"
                   >
-                    <div class="cell-content">
-                      <div 
-                        class="status-dot" 
-                        :class="getStatusClass(day)"
-                        :title="getTooltip(member.member_name, day)"
-                      ></div>
-                    </div>
+                    <div
+                      v-if="getMemberDay(member, day.date)"
+                      class="status-indicator"
+                      :class="getStatusClass(getMemberDay(member, day.date))"
+                    ></div>
                   </td>
 
                   <td class="summary-cell">
                     <div class="member-summary">
-                      <div class="hours">{{ member.summary?.total_hours || 0 }}h</div>
-                      <div class="days">{{ member.summary?.total_days || 0 }}d</div>
+                      <div class="days">{{ member.sum_days || member.summary?.total_days || 0 }}d</div>
                     </div>
                   </td>
                 </tr>
@@ -149,17 +141,17 @@
                   <td class="member-cell totals-label">
                     <strong>Team Gesamt</strong>
                   </td>
-                  <td 
-                    v-for="day in visibleDays" 
+                  <td
+                    v-for="day in visibleDays"
                     :key="`total-${day.date}`"
                     class="total-cell"
+                    :class="{ 'weekend-separator': day.showWeekendSeparator }"
                   >
                     <div class="day-total">{{ getDayTotal(day.date) }}</div>
                   </td>
                   <td class="summary-cell">
                     <div class="team-summary">
-                      <div class="hours">{{ availability.team_summary?.total_hours || 0 }}h</div>
-                      <div class="days">{{ availability.team_summary?.total_days || 0 }}d</div>
+                      <div class="days">{{ availability.sum_days_team || availability.team_summary?.total_days || 0 }}d</div>
                     </div>
                   </td>
                 </tr>
@@ -173,10 +165,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import Dialog from 'primevue/dialog'
 import ProgressSpinner from 'primevue/progressspinner'
-import Checkbox from 'primevue/checkbox'
 import Button from 'primevue/button'
 
 import type { Sprint, DayAvailability, AvailabilityResponse } from '@/types/index'
@@ -201,23 +192,37 @@ const emit = defineEmits<{
 }>()
 
 // State
-const hideWeekends = ref(false)
+// Wochenenden werden automatisch ausgeblendet
 
 // Computed
 const visibleDays = computed(() => {
   if (!props.availability?.members?.length) return []
-  
+
   const firstMember = props.availability.members[0]
   if (!firstMember?.days?.length) return []
 
-  return firstMember.days
-    .filter(day => !hideWeekends.value || !isWeekend(day.day))
-    .map(day => ({
-      date: day.day,
-      dayName: getDayName(day.day),
-      displayDate: getDisplayDate(day.day),
-      isWeekend: isWeekend(day.day)
-    }))
+  const result = firstMember.days
+    .filter(day => {
+      // Handle actual data structure - check multiple possible date fields
+      const dateField = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+      return dateField && !isWeekend(dateField)
+    })
+    .map((day, index, filteredDays) => {
+      const dateField = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+      const previousDay = index > 0 ? filteredDays[index - 1] : null
+      const previousDateField = previousDay ? ((previousDay as any).day || (previousDay as any).date || (previousDay as any).dateString || (previousDay as any).day_date) : null
+      const showWeekendSeparator = previousDay && hasWeekendBetween(previousDateField, dateField)
+
+      return {
+        date: dateField,
+        dayName: getDayName(dateField),
+        displayDate: getDisplayDate(dateField),
+        isWeekend: isWeekend(dateField),
+        showWeekendSeparator
+      }
+    })
+
+  return result
 })
 
 // Functions
@@ -228,25 +233,76 @@ const isWeekend = (dateString: string) => {
 }
 
 const getDayName = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('de-DE', { weekday: 'short' })
+  if (!dateString) return 'N/A'
+  // Backend liefert Format YYYY-MM-DD
+  const date = new Date(dateString + 'T00:00:00')
+  if (isNaN(date.getTime())) {
+    console.log('Invalid date:', dateString)
+    return dateString
+  }
+  return date.toLocaleDateString('de-DE', { weekday: 'short' })
 }
 
 const getDisplayDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('de-DE', {
+  if (!dateString) return 'N/A'
+  // Backend liefert Format YYYY-MM-DD
+  const date = new Date(dateString + 'T00:00:00')
+  if (isNaN(date.getTime())) {
+    // Fallback: YYYY-MM-DD direkt formatieren
+    const parts = dateString.split('-')
+    if (parts.length === 3) {
+      return `${parts[2]}.${parts[1]}`
+    }
+    return dateString
+  }
+  return date.toLocaleDateString('de-DE', {
     day: '2-digit',
     month: '2-digit'
   })
 }
 
-const getVisibleDaysForMember = (member: { days: DayAvailability[] }) => {
-  return member.days.filter((day: DayAvailability) => 
-    !hideWeekends.value || !isWeekend(day.day)
-  )
+
+
+
+
+const hasWeekendBetween = (date1: string, date2: string) => {
+  const d1 = new Date(date1)
+  const d2 = new Date(date2)
+  const diffDays = Math.floor((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24))
+  return diffDays > 1 // Mehr als 1 Tag Unterschied bedeutet Wochenende dazwischen
 }
 
-const getStatusClass = (day: DayAvailability) => {
+const getMemberDay = (member: { days?: DayAvailability[] }, date: string) => {
+  return member.days?.find(d => {
+    const dayDate = (d as any).day || (d as any).date || (d as any).dateString || (d as any).day_date
+    return dayDate === date
+  }) || null
+}
+
+const getStatusClass = (day: DayAvailability | null) => {
+  if (!day) return 'unknown'
+
   const state = day.final_state
-  
+  const overrideState = day.override_state
+
+  // Debug: Log the states to understand what we're getting
+  console.log('getStatusClass debug:', { state, overrideState, day })
+
+  // Priority: override_state takes precedence if it exists
+  if (overrideState !== null && overrideState !== undefined) {
+    switch (overrideState) {
+      case 'available':
+        return 'available'
+      case 'half':
+        return 'half'
+      case 'out':
+        return 'unavailable'
+      default:
+        return 'unavailable' // Any other override should be unavailable
+    }
+  }
+
+  // Fall back to final_state
   switch (state) {
     case 'available':
       return 'available'
@@ -254,55 +310,82 @@ const getStatusClass = (day: DayAvailability) => {
       return 'half'
     case 'out':
     case 'pto':
+    case 'out_of_assignment':
       return 'unavailable'
     case 'holiday':
       return 'holiday'
     case 'weekend':
       return 'weekend'
     default:
+      console.log('Unknown state detected:', state)
       return 'unknown'
   }
 }
 
-const getTooltip = (memberName: string, day: DayAvailability) => {
-  const date = new Date(day.day).toLocaleDateString('de-DE')
+const getTooltip = (memberName: string, day: DayAvailability | null) => {
+  if (!day) return ''
+
+  // Handle the actual data structure for date
+  const dayDate = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+  let formattedDate = 'Unbekanntes Datum'
+
+  if (dayDate) {
+    const date = new Date(dayDate + 'T00:00:00')
+    if (!isNaN(date.getTime())) {
+      formattedDate = date.toLocaleDateString('de-DE')
+    } else {
+      // Fallback for YYYY-MM-DD format
+      const parts = dayDate.split('-')
+      if (parts.length === 3) {
+        formattedDate = `${parts[2]}.${parts[1]}.${parts[0]}`
+      }
+    }
+  }
+
   const stateLabels: Record<string, string> = {
     available: 'Verfügbar',
     half: 'Halbtags',
     out: 'Nicht verfügbar',
+    unavailable: 'Nicht verfügbar',
     pto: 'Urlaub',
     holiday: 'Feiertag',
     weekend: 'Wochenende'
   }
-  
-  const stateLabel = stateLabels[day.final_state] || 'Unbekannt'
-  return `${memberName} - ${date}: ${stateLabel}`
+
+  const stateLabel = stateLabels[day.final_state] || `Unbekannt (${day.final_state})`
+  const memberDisplayName = memberName || 'Unbekanntes Mitglied'
+  return `${memberDisplayName} - ${formattedDate}: ${stateLabel}`
 }
 
 const getDayTotal = (date: string) => {
-  if (!props.availability?.members) return 0
-  
-  return props.availability.members.reduce((total, member) => {
-    const day = member.days.find(d => d.day === date)
-    if (!day) return total
-    
-    switch (day.final_state) {
-      case 'available':
-        return total + 1
-      case 'half':
-        return total + 0.5
-      default:
-        return total
+  if (!props.availability?.members) return '0'
+
+  let total = 0
+  props.availability.members.forEach(member => {
+    // Handle the actual data structure - check multiple possible date fields
+    const day = member.days?.find(d => {
+      const dayDate = (d as any).day || (d as any).date || (d as any).dateString || (d as any).day_date
+      return dayDate === date
+    })
+    if (day && day.final_state === 'available') {
+      const allocation = Number(member.allocation) || 1
+      total += allocation
+    } else if (day && day.final_state === 'half') {
+      const allocation = Number(member.allocation) || 1
+      total += allocation * 0.5
     }
-  }, 0)
+  })
+
+  return String(Number(total).toFixed(1))
 }
 
-const handleCellClick = (memberId: number, date: string, day: DayAvailability) => {
+const handleCellClick = (memberId: number, date: string, day: DayAvailability | null) => {
+  if (!day) return
   // Don't allow editing weekends or holidays
   if (day.final_state === 'weekend' || day.final_state === 'holiday') {
     return
   }
-  
+
   emit('toggle-availability', memberId, date, day)
 }
 </script>
@@ -460,18 +543,35 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   border: 1px solid #f3f4f6;
 }
 
-.legend-hint {
+/* Compact legend in controls bar */
+.legend-inline {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #1e40af;
-  background: #dbeafe;
+  gap: 1rem;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border-left: 3px solid #3b82f6;
-  margin-left: auto;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.legend-items-compact {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.legend-item-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.legend-item-compact .status-indicator.unavailable {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
 }
 
 .status-indicator {
@@ -483,20 +583,24 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   flex-shrink: 0;
 }
 
-.status-indicator.available { 
+.status-indicator.available {
   background: linear-gradient(135deg, #10b981, #059669);
 }
-.status-indicator.half { 
+.status-indicator.half {
   background: linear-gradient(90deg, #f59e0b 50%, #fbbf24 50%);
 }
-.status-indicator.unavailable { 
+.status-indicator.unavailable {
   background: linear-gradient(135deg, #ef4444, #dc2626);
 }
-.status-indicator.weekend { 
+.status-indicator.weekend {
   background: linear-gradient(135deg, #9ca3af, #6b7280);
 }
-.status-indicator.holiday { 
+.status-indicator.holiday {
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+.status-indicator.unknown {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af);
+  opacity: 0.7;
 }
 
 .grid-container {
@@ -554,6 +658,11 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
 .day-header.weekend {
   background: linear-gradient(135deg, #fef3c7 0%, #fbbf24 100%);
   color: #92400e;
+}
+
+.day-header.weekend-separator {
+  border-left: 4px double #3b82f6;
+  box-shadow: -2px 0 4px rgba(59, 130, 246, 0.3);
 }
 
 .summary-header,
@@ -617,10 +726,20 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
 }
 
 .availability-cell {
-  padding: 1rem 0.75rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
+  padding: 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  min-width: 80px;
+  height: 60px;
+}
+
+.availability-cell.weekend-separator {
+  border-left: 4px double #3b82f6;
+  box-shadow: -2px 0 4px rgba(59, 130, 246, 0.2);
 }
 
 .availability-cell:hover {
@@ -662,27 +781,27 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
   box-shadow: 0 6px 12px rgba(0,0,0,0.2), 0 6px 12px rgba(0,0,0,0.25);
 }
 
-.status-dot.available { 
+.status-dot.available {
   background: linear-gradient(135deg, #10b981, #059669);
 }
 
-.status-dot.half { 
+.status-dot.half {
   background: linear-gradient(90deg, #f59e0b 50%, #fbbf24 50%);
 }
 
-.status-dot.unavailable { 
+.status-dot.unavailable {
   background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
-.status-dot.weekend { 
+.status-dot.weekend {
   background: linear-gradient(135deg, #9ca3af, #6b7280);
 }
 
-.status-dot.holiday { 
+.status-dot.holiday {
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
-.status-dot.unknown { 
+.status-dot.unknown {
   background: linear-gradient(135deg, #d1d5db, #9ca3af);
 }
 
@@ -723,8 +842,18 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
 }
 
 .total-cell {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  padding: 1rem 0.75rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-weight: 600;
+  border-top: 2px solid #64748b;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+  border-right: 1px solid #cbd5e1;
+}
+
+.total-cell.weekend-separator {
+  border-left: 4px double #3b82f6;
+  box-shadow: -2px 0 4px rgba(59, 130, 246, 0.2);
 }
 
 .day-total {
@@ -740,13 +869,13 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
     gap: 1rem;
     align-items: flex-start;
   }
-  
+
   .legend-bar {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
   }
-  
+
   .legend-hint {
     margin-left: 0;
   }
@@ -758,22 +887,22 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability) =
     min-width: 140px;
     padding: 0.75rem;
   }
-  
+
   .day-header {
     min-width: 50px;
     padding: 0.5rem 0.25rem;
   }
-  
+
   .summary-header,
   .summary-cell {
     min-width: 80px;
     padding: 0.75rem;
   }
-  
+
   .availability-cell {
     padding: 0.5rem;
   }
-  
+
   .status-dot {
     width: 16px;
     height: 16px;

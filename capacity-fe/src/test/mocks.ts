@@ -58,6 +58,7 @@ export const mockHolidayDay: DayAvailability = {
 export const mockMemberAvailability: MemberAvailability = {
   member_id: 1,
   member_name: 'Alice Developer',
+  allocation: 1.0,
   days: [
     mockDayAvailability,
     mockDayWithOverride,

@@ -154,7 +154,7 @@ import { useMembersStore } from '@/stores/members'
 import api from '@/services/api'
 
 // Types
-import type { Sprint, SprintStatus, SprintRoster } from '@/types'
+import type { Sprint, SprintStatus, SprintRoster, AvailabilityResponse, DayAvailability } from '@/types'
 
 // Store instances
 const sprintsStore = useSprintsStore()
@@ -177,7 +177,7 @@ const editingSprint = ref<Sprint | null>(null)
 const selectedSprint = ref<Sprint | null>(null)
 
 const roster = ref<SprintRoster[]>([])
-const availabilityData = ref<object | null>(null)
+const availabilityData = ref<AvailabilityResponse | null>(null)
 
 // Computed properties
 const sprints = computed(() => sprintsStore.sprints)
@@ -201,11 +201,7 @@ interface SprintFormData {
   status?: SprintStatus
 }
 
-interface DayObject {
-  override_state?: string
-  final_state?: string
-  [key: string]: unknown
-}
+
 
 const handleSprintSubmit = async (formData: SprintFormData) => {
   try {
@@ -358,6 +354,12 @@ const showAvailability = async () => {
     availabilityData.value = data
   } catch (error) {
     console.error('Error loading availability:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Fehler beim Laden der Verfügbarkeitsdaten',
+      life: 3000
+    })
   } finally {
     availabilityLoading.value = false
   }
@@ -389,7 +391,7 @@ const showRoster = async () => {
 
 const handleRosterDialogClose = async (visible: boolean) => {
   showRosterDialog.value = visible
-  
+
   // When dialog is closed, refresh sprint data to update member count
   if (!visible) {
     try {
@@ -405,23 +407,26 @@ const handleOpenRosterFromAvailability = () => {
   showRoster()
 }
 
-const handleToggleAvailability = async (memberId: number, date: string, currentDay: DayObject) => {
+const handleToggleAvailability = async (memberId: number, date: string, currentDay: DayAvailability) => {
   if (!selectedSprint.value) return
 
   try {
     availabilityLoading.value = true
-    
-    const currentState = currentDay.override_state as string || currentDay.final_state as string
-    let newState: 'available' | 'half' | null = 'available'
-    
+
+    const currentState = currentDay.override_state || currentDay.final_state
+    let newState: 'available' | 'half' | 'unavailable' | null = 'available'
+
+    // Cycle through: available → half → unavailable → available
     switch (currentState) {
       case 'available':
         newState = 'half'
         break
       case 'half':
-        newState = null // This will set to 'out' via the API
+        newState = 'unavailable'
         break
-      case 'out':
+      case 'out': // Backend uses 'out', but API expects 'unavailable'
+        newState = 'available'
+        break
       case null:
       default:
         newState = 'available'

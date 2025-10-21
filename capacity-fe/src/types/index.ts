@@ -76,10 +76,13 @@ export interface DayAvailability {
 
 export interface MemberAvailability {
   member_id: number
-  member_name: string
+  member_name?: string
+  name?: string
   allocation: number
   days: DayAvailability[]
-  summary: {
+  sum_days?: number
+  sum_hours?: number
+  summary?: {
     total_days: number
     total_hours: number
   }
@@ -88,7 +91,9 @@ export interface MemberAvailability {
 export interface AvailabilityResponse {
   sprint: Sprint
   members: MemberAvailability[]
-  team_summary: {
+  sum_days_team?: number
+  sum_hours_team?: number
+  team_summary?: {
     total_days: number
     total_hours: number
   }

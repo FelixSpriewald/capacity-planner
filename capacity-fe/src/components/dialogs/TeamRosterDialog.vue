@@ -85,6 +85,7 @@
                             :maxDate="sprintEndDate"
                             placeholder="Sprint-Start"
                             showButtonBar
+                            aria-label="Assignment von Datum"
                           />
                         </div>
                         <div class="date-field">
@@ -97,6 +98,7 @@
                             :maxDate="sprintEndDate"
                             placeholder="Sprint-Ende"
                             showButtonBar
+                            aria-label="Assignment bis Datum"
                           />
                         </div>
                       </div>
@@ -166,6 +168,7 @@
               :maxDate="sprintEndDate"
               placeholder="Sprint-Start"
               showButtonBar
+              aria-label="Neues Mitglied Assignment von Datum"
             />
           </div>
           <div class="form-field">
@@ -178,6 +181,7 @@
               :maxDate="sprintEndDate"
               placeholder="Sprint-Ende"
               showButtonBar
+              aria-label="Neues Mitglied Assignment bis Datum"
             />
           </div>
         </div>
@@ -340,9 +344,9 @@ const originalRosterData = ref<EnhancedMember[]>([])
 watch(() => [props.roster, props.members], ([newRoster, newMembers]) => {
   if (!newRoster || !newMembers) return
 
-  const enhancedRoster: EnhancedMember[] = newRoster.map(rosterMember => {
+  const enhancedRoster: EnhancedMember[] = (newRoster as SprintRoster[]).map((rosterMember: SprintRoster) => {
     // Find member name from members list
-    const memberInfo = newMembers.find(m => m.member_id === rosterMember.member_id)
+    const memberInfo = (newMembers as Member[]).find(m => m.member_id === rosterMember.member_id)
 
     return {
       ...rosterMember,
