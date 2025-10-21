@@ -285,8 +285,7 @@ const getStatusClass = (day: DayAvailability | null) => {
   const state = day.final_state
   const overrideState = day.override_state
 
-  // Debug: Log the states to understand what we're getting
-  console.log('getStatusClass debug:', { state, overrideState, day })
+  // Status detection logic
 
   // Priority: override_state takes precedence if it exists
   if (overrideState !== null && overrideState !== undefined) {
@@ -394,12 +393,26 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 .availability-dialog :deep(.p-dialog-content) {
   padding: 0;
   height: 100%;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.availability-dialog :deep(.p-dialog-header) {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  padding: 1.5rem 2rem;
+  border: none;
+}
+
+.availability-dialog :deep(.p-dialog-header-icon) {
+  color: white;
 }
 
 .availability-content {
   height: calc(80vh - 120px);
   display: flex;
   flex-direction: column;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .loading-container,
@@ -444,10 +457,13 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-bottom: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem 2rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 10;
 }
 
 .filters {
@@ -487,19 +503,38 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
   font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  transition: opacity 0.3s ease;
+  opacity: 0;
 }
 
 .summary-item:hover {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+}
+
+.summary-item:hover::before {
+  opacity: 1;
 }
 
 .summary-item i {
@@ -564,10 +599,21 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 .legend-item-compact {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+}
+
+.legend-item-compact:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .legend-item-compact .status-indicator.unavailable {
@@ -575,12 +621,28 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 }
 
 .status-indicator {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
   flex-shrink: 0;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.availability-cell:hover .status-indicator::before {
+  opacity: 1;
 }
 
 .status-indicator.available {
@@ -607,15 +669,22 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
   flex: 1;
   overflow: auto;
   padding: 1.5rem;
-  background: #f9fafb;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .grid-wrapper {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
-  background: white;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.grid-wrapper:hover {
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
 
 .availability-grid {
@@ -648,11 +717,21 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 }
 
 .day-header {
-  min-width: 70px;
-  padding: 1rem 0.75rem;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  font-weight: 600;
-  color: #374151;
+  min-width: 80px;
+  padding: 1.25rem 0.75rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-weight: 700;
+  color: #334155;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.day-header:hover {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  color: #0f172a;
+  transform: translateY(-1px);
 }
 
 .day-header.weekend {
@@ -744,7 +823,10 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 
 .availability-cell:hover {
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  transform: scale(1.02);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  z-index: 5;
 }
 
 .availability-cell.weekend,
