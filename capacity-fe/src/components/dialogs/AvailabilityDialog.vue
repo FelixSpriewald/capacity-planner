@@ -71,8 +71,8 @@
             <thead>
               <tr>
                 <th class="member-column">Team-Mitglied</th>
-                <th 
-                  v-for="(day, index) in filteredDays" 
+                <th
+                  v-for="(day, index) in filteredDays"
                   :key="day.day"
                   class="day-column"
                   :class="{
@@ -99,7 +99,7 @@
                     </div>
                   </div>
                 </td>
-                <td 
+                <td
                   v-for="(day, dayIndex) in member.days.filter(d => !hideWeekends || !isWeekendDay(d.day))"
                   :key="day.day"
                   class="availability-cell"
@@ -127,8 +127,8 @@
                 <td class="member-column">
                   <strong>Team Gesamt</strong>
                 </td>
-                <td 
-                  v-for="day in filteredDays" 
+                <td
+                  v-for="day in filteredDays"
                   :key="`total-${day.day}`"
                   class="availability-cell total-cell"
                   :class="{ 'weekend-day': day.is_weekend }"
@@ -185,12 +185,12 @@ const hideWeekends = ref(false)
 // Computed properties
 const filteredDays = computed(() => {
   if (!props.availability?.members?.length) return []
-  
+
   const allDays = props.availability.members[0]?.days?.map(d => ({
     day: d.day,
     is_weekend: isWeekendDay(d.day)
   })) || []
-  
+
   if (hideWeekends.value) {
     return allDays.filter(day => !day.is_weekend)
   }
@@ -209,15 +209,15 @@ const getDayName = (dateString: string) => {
 }
 
 const formatDayDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('de-DE', { 
-    day: '2-digit', 
-    month: '2-digit' 
+  return new Date(dateString).toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit'
   })
 }
 
 const getAvailabilityClass = (day: DayAvailability) => {
   const finalState = day.final_state as string
-  
+
   switch (finalState) {
     case 'available':
       return 'available'
@@ -241,7 +241,7 @@ const getAvailabilityTooltip = (day: DayAvailability, memberName: string) => {
   const date = day.day as string
   const finalState = day.final_state as string
   const reason = day.reason as string || ''
-  
+
   const stateText = {
     available: 'Verfügbar',
     half: 'Teilweise verfügbar',
@@ -251,13 +251,13 @@ const getAvailabilityTooltip = (day: DayAvailability, memberName: string) => {
     weekend: 'Wochenende',
     out_of_assignment: 'Außerhalb Zuordnung'
   }[finalState] || 'Unbekannt'
-  
+
   return `${memberName} - ${new Date(date).toLocaleDateString('de-DE')}: ${stateText}${reason ? ` (${reason})` : ''}`
 }
 
 const getDayTotal = (date: string) => {
   if (!props.availability?.members) return 0
-  
+
   let total = 0
   props.availability.members.forEach(member => {
     const day = member.days.find(d => d.day === date)

@@ -337,13 +337,21 @@ const rosterData = ref<EnhancedMember[]>([])
 const originalRosterData = ref<EnhancedMember[]>([])
 
 // Watch props.roster and update local reactive roster
-watch(() => props.roster, (newRoster) => {
-  const enhancedRoster = newRoster.map(member => ({
-    ...member,
-    allocation: Number.parseFloat(member.allocation.toString()),
-    assignment_from_date: parseDateFromApi(member.assignment_from),
-    assignment_to_date: parseDateFromApi(member.assignment_to)
-  }))
+watch(() => [props.roster, props.members], ([newRoster, newMembers]) => {
+  if (!newRoster || !newMembers) return
+
+  const enhancedRoster: EnhancedMember[] = newRoster.map(rosterMember => {
+    // Find member name from members list
+    const memberInfo = newMembers.find(m => m.member_id === rosterMember.member_id)
+
+    return {
+      ...rosterMember,
+      allocation: Number.parseFloat(rosterMember.allocation.toString()),
+      assignment_from_date: parseDateFromApi(rosterMember.assignment_from),
+      assignment_to_date: parseDateFromApi(rosterMember.assignment_to),
+      member_name: memberInfo?.name || `Member #${rosterMember.member_id}`
+    } as EnhancedMember
+  })
   rosterData.value = enhancedRoster
   // Store original data for comparison with proper date cloning
   originalRosterData.value = enhancedRoster.map(member => ({

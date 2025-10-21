@@ -118,6 +118,7 @@
       @add-member="handleAddMember"
       @update-member="handleUpdateMember"
       @remove-member="handleRemoveMember"
+      @update:visible="handleRosterDialogClose"
     />
 
     <!-- Availability Dialog -->
@@ -152,7 +153,7 @@ import { useMembersStore } from '@/stores/members'
 import api from '@/services/api'
 
 // Types
-import type { Sprint, SprintStatus } from '@/types'
+import type { Sprint, SprintStatus, SprintRoster } from '@/types'
 
 // Store instances
 const sprintsStore = useSprintsStore()
@@ -174,7 +175,7 @@ const showAvailabilityDialog = ref(false)
 const editingSprint = ref<Sprint | null>(null)
 const selectedSprint = ref<Sprint | null>(null)
 
-const roster = ref<Array<object>>([])
+const roster = ref<SprintRoster[]>([])
 const availabilityData = ref<object | null>(null)
 
 // Computed properties
@@ -260,8 +261,11 @@ const handleAddMember = async (memberData: { member_id: number; allocation: numb
   try {
     rosterLoading.value = true
 
-    // API call would go here
-    console.log('Add member:', memberData)
+    await api.addMemberToRoster(selectedSprint.value.sprint_id, memberData)
+
+    // Reload roster data
+    const data = await api.getSprintRoster(selectedSprint.value.sprint_id)
+    roster.value = data || []
 
     toast.add({
       severity: 'success',
@@ -270,6 +274,7 @@ const handleAddMember = async (memberData: { member_id: number; allocation: numb
       life: 3000
     })
   } catch (error) {
+    console.error('Error adding member:', error)
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -287,8 +292,11 @@ const handleUpdateMember = async (memberData: { member_id: number; allocation: n
   try {
     rosterLoading.value = true
 
-    // API call would go here
-    console.log('Update member:', memberData)
+    await api.updateSprintRoster(selectedSprint.value.sprint_id, memberData.member_id, memberData)
+
+    // Reload roster data
+    const data = await api.getSprintRoster(selectedSprint.value.sprint_id)
+    roster.value = data || []
 
     toast.add({
       severity: 'success',
@@ -297,6 +305,7 @@ const handleUpdateMember = async (memberData: { member_id: number; allocation: n
       life: 3000
     })
   } catch (error) {
+    console.error('Error updating member:', error)
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -314,8 +323,11 @@ const handleRemoveMember = async (memberId: number) => {
   try {
     rosterLoading.value = true
 
-    // API call would go here
-    console.log('Remove member:', memberId)
+    await api.removeMemberFromRoster(selectedSprint.value.sprint_id, memberId)
+
+    // Reload roster data
+    const data = await api.getSprintRoster(selectedSprint.value.sprint_id)
+    roster.value = data || []
 
     toast.add({
       severity: 'success',
@@ -324,6 +336,7 @@ const handleRemoveMember = async (memberId: number) => {
       life: 3000
     })
   } catch (error) {
+    console.error('Error removing member:', error)
     toast.add({
       severity: 'error',
       summary: 'Fehler',
@@ -354,10 +367,36 @@ const showAvailability = async () => {
 const showRoster = async () => {
   if (!selectedSprint.value) return
 
-  // Load roster data here
-  console.log('Load roster for sprint:', selectedSprint.value.sprint_id)
+  rosterLoading.value = true
+  try {
+    const data = await api.getSprintRoster(selectedSprint.value.sprint_id)
+    roster.value = data || []
+  } catch (error) {
+    console.error('Error loading roster:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Fehler',
+      detail: 'Fehler beim Laden des Team Rosters',
+      life: 3000
+    })
+  } finally {
+    rosterLoading.value = false
+  }
 
   showRosterDialog.value = true
+}
+
+const handleRosterDialogClose = async (visible: boolean) => {
+  showRosterDialog.value = visible
+
+  // When dialog is closed, refresh sprint data to update member count
+  if (!visible) {
+    try {
+      await sprintsStore.fetchSprints()
+    } catch (error) {
+      console.error('Error refreshing sprints:', error)
+    }
+  }
 }
 
 const handleToggleAvailability = async (memberId: number, date: string, currentDay: DayObject) => {
@@ -377,7 +416,7 @@ const handleToggleAvailability = async (memberId: number, date: string, currentD
 
     // API call would go here
     console.log('Toggle availability:', { memberId, date, newState })
-    
+
     // Reload data
     const data = await api.getSprintAvailability(selectedSprint.value.sprint_id)
     availabilityData.value = data
