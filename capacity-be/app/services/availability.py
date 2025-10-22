@@ -75,11 +75,29 @@ class AvailabilityService:
             total_team_days += member_data.sum_days
             total_team_hours += member_data.sum_hours
 
+        # Calculate additional metrics
+        working_days = self._calculate_working_days(sprint.start_date, sprint.end_date)
+        holidays_by_region = self._calculate_holidays_by_region(roster_entries, holidays_map, sprint_days)
+        total_capacity_hours = self._calculate_total_capacity_hours(roster_entries, working_days)
+        total_capacity_days = self._calculate_total_capacity_days(roster_entries, working_days)
+        available_capacity_hours = self._calculate_available_capacity_hours(members_data)
+        available_capacity_days = self._calculate_available_capacity_days(members_data)
+        efficiency = self._calculate_efficiency(available_capacity_hours, total_capacity_hours)
+
         return AvailabilityResponse(
             sprint=SprintResponse.model_validate(sprint),
             members=members_data,
             sum_days_team=total_team_days,
-            sum_hours_team=total_team_hours
+            sum_hours_team=total_team_hours,
+            team_summary={
+                "total_days": total_capacity_days,
+                "total_hours": total_capacity_hours
+            },
+            working_days=working_days,
+            holidays_by_region=holidays_by_region,
+            available_capacity_hours=available_capacity_hours,
+            available_capacity_days=available_capacity_days,
+            efficiency_percentage=efficiency
         )
 
     def _generate_sprint_days(self, start_date: date, end_date: date) -> List[date]:
@@ -163,11 +181,11 @@ class AvailabilityService:
             )
             days_data.append(day_data)
 
-            # Summe berechnen
+            # Summe berechnen (mit Allocation berücksichtigen)
             if day_data.final_state == AvailabilityState.AVAILABLE:
-                sum_days += 1.0
+                sum_days += float(roster_entry.allocation)
             elif day_data.final_state == AvailabilityState.HALF:
-                sum_days += 0.5
+                sum_days += float(roster_entry.allocation) * 0.5
 
         # Stunden = Tage * 8h * employment_ratio * allocation
         sum_hours = float(sum_days * 8 * float(member.employment_ratio) * float(roster_entry.allocation))
@@ -177,6 +195,7 @@ class AvailabilityService:
             name=member.name,
             employment_ratio=member.employment_ratio,
             allocation=roster_entry.allocation,
+            allocation_percentage=round(float(roster_entry.allocation) * 100),
             days=days_data,
             sum_days=sum_days,
             sum_hours=sum_hours
@@ -283,3 +302,78 @@ class AvailabilityService:
 
             self.db.commit()
             return True
+
+    def _calculate_working_days(self, start_date: date, end_date: date) -> int:
+        """Calculate working days (Monday to Friday) in sprint"""
+        working_days = 0
+        current = start_date
+        while current <= end_date:
+            # Monday = 0, Sunday = 6
+            if current.weekday() < 5:  # Monday to Friday
+                working_days += 1
+            current += timedelta(days=1)
+        return working_days
+
+    def _calculate_holidays_by_region(self, roster_entries: List, holidays_map: Dict, sprint_days: List[date]) -> List[Dict]:
+        """Calculate holidays count by region"""
+        region_counts = {}
+
+        for roster_entry in roster_entries:
+            if not roster_entry.member.region_code:
+                continue
+
+            region = roster_entry.member.region_code
+            holiday_count = 0
+
+            for day in sprint_days:
+                if (day, region) in holidays_map:
+                    holiday_count += 1
+
+            if holiday_count > 0:
+                region_counts[region] = max(region_counts.get(region, 0), holiday_count)
+
+        return [{'region': region, 'count': count} for region, count in region_counts.items()]
+
+    def _calculate_total_capacity_hours(self, roster_entries: List, working_days: int) -> float:
+        """Calculate total capacity hours for all members"""
+        total = 0.0
+        for roster_entry in roster_entries:
+            member_capacity = (
+                working_days * 8 *  # 8 hours per working day
+                float(roster_entry.member.employment_ratio) *
+                float(roster_entry.allocation)
+            )
+            total += member_capacity
+        return round(total, 1)
+
+    def _calculate_total_capacity_days(self, roster_entries: List, working_days: int) -> float:
+        """Calculate total capacity days for all members"""
+        total = 0.0
+        for roster_entry in roster_entries:
+            member_capacity = (
+                working_days *
+                float(roster_entry.member.employment_ratio) *
+                float(roster_entry.allocation)
+            )
+            total += member_capacity
+        return round(total, 1)
+
+    def _calculate_available_capacity_hours(self, members_data: List) -> float:
+        """Calculate available capacity hours from member data"""
+        total = 0.0
+        for member in members_data:
+            total += member.sum_hours
+        return round(total, 1)
+
+    def _calculate_available_capacity_days(self, members_data: List) -> float:
+        """Calculate available capacity days from member data"""
+        total = 0.0
+        for member in members_data:
+            total += member.sum_days
+        return round(total, 1)
+
+    def _calculate_efficiency(self, available_hours: float, total_hours: float) -> int:
+        """Calculate efficiency percentage"""
+        if total_hours == 0:
+            return 0
+        return round((available_hours / total_hours) * 100)

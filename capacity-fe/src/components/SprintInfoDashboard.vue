@@ -116,42 +116,14 @@ interface Warning {
 
 const props = defineProps<Props>()
 
-// Calculate working days (Monday to Friday)
+// Use backend-calculated working days
 const workingDays = computed(() => {
-  if (!props.sprint) return 0
-
-  const start = new Date(props.sprint.start_date)
-  const end = new Date(props.sprint.end_date)
-  let workingDays = 0
-
-  for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-    const dayOfWeek = date.getDay()
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday to Friday
-      workingDays++
-    }
-  }
-
-  return workingDays
+  return props.availability?.working_days || 0
 })
 
-// Calculate holidays by region
+// Use backend-calculated holidays by region
 const holidaysByRegion = computed(() => {
-  if (!props.availability || !props.members) return []
-
-  const regionCounts: Record<string, number> = {}
-
-  // Count holidays for each member
-  for (const memberAvailability of props.availability.members) {
-    const member = props.members.find(m => m.member_id === memberAvailability.member_id)
-    if (!member || !member.region_code) continue
-
-    const holidayCount = memberAvailability.days.filter(day => day.auto_status === 'holiday').length
-    if (holidayCount > 0) {
-      regionCounts[member.region_code] = Math.max(regionCounts[member.region_code] || 0, holidayCount)
-    }
-  }
-
-  return Object.entries(regionCounts).map(([region, count]) => ({ region, count }))
+  return props.availability?.holidays_by_region || []
 })
 
 const totalHolidays = computed(() => {
@@ -168,53 +140,25 @@ const activeMembers = computed(() => {
   return props.members.filter(m => m.active).length
 })
 
-// Capacity calculations
+// Use backend-calculated capacity values
 const totalCapacityHours = computed(() => {
-  return props.availability?.team_summary.total_hours || 0
+  return props.availability?.team_summary?.total_hours || 0
 })
 
 const totalCapacityDays = computed(() => {
-  return props.availability?.team_summary.total_days || 0
+  return props.availability?.team_summary?.total_days || 0
 })
 
 const availableCapacityHours = computed(() => {
-  if (!props.availability) return 0
-
-  let total = 0
-  for (const member of props.availability.members) {
-    const memberRatio = getMemberRatio(member.member_id)
-    for (const day of member.days) {
-      if (day.final_state === 'available') {
-        total += 8 * memberRatio // 8 hours per day
-      } else if (day.final_state === 'half') {
-        total += 4 * memberRatio // 4 hours for half day
-      }
-    }
-  }
-
-  return Math.round(total * 10) / 10
+  return props.availability?.available_capacity_hours || 0
 })
 
 const availableCapacityDays = computed(() => {
-  if (!props.availability) return 0
-
-  let total = 0
-  for (const member of props.availability.members) {
-    for (const day of member.days) {
-      if (day.final_state === 'available') {
-        total += 1
-      } else if (day.final_state === 'half') {
-        total += 0.5
-      }
-    }
-  }
-
-  return Math.round(total * 10) / 10
+  return props.availability?.available_capacity_days || 0
 })
 
 const efficiency = computed(() => {
-  if (totalCapacityHours.value === 0) return 0
-  return Math.round((availableCapacityHours.value / totalCapacityHours.value) * 100)
+  return props.availability?.efficiency_percentage || 0
 })
 
 // Warnings and notifications
@@ -280,12 +224,7 @@ const warnings = computed((): Warning[] => {
   return warningList
 })
 
-// Helper functions
-function getMemberRatio(memberId: number): number {
-  if (!props.members) return 1
-  const member = props.members.find(m => m.member_id === memberId)
-  return member ? member.employment_ratio : 1
-}
+// Helper functions removed - now using backend calculations
 </script>
 
 <style scoped>

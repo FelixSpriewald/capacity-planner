@@ -166,6 +166,7 @@ class AvailabilityMember(BaseModel):
     name: str
     employment_ratio: Decimal
     allocation: Decimal
+    allocation_percentage: Optional[int] = None  # Already formatted as percentage
     days: List[AvailabilityDay]
     sum_days: float
     sum_hours: float
@@ -177,6 +178,12 @@ class AvailabilityResponse(BaseModel):
     members: List[AvailabilityMember]
     sum_days_team: float
     sum_hours_team: float
+    team_summary: Optional[dict] = None  # {"total_days": float, "total_hours": float}
+    working_days: Optional[int] = None
+    holidays_by_region: Optional[List[dict]] = None  # [{"region": str, "count": int}]
+    available_capacity_hours: Optional[float] = None
+    available_capacity_days: Optional[float] = None
+    efficiency_percentage: Optional[int] = None
 
 
 # === Availability Override Schemas ===

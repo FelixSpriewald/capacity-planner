@@ -3,7 +3,7 @@
     <td class="member-cell">
       <div class="member-info">
         <div class="member-name">{{ member.member_name || member.name || `Member ${member.member_id}` }}</div>
-        <div class="member-allocation">{{ Math.round((member.allocation || 1) * 100) }}%</div>
+        <div class="member-allocation">{{ member.allocation_percentage || Math.round((member.allocation || 1) * 100) }}%</div>
       </div>
     </td>
 
@@ -14,15 +14,12 @@
       :class="{
         'weekend': day.isWeekend,
         'weekend-separator': day.showWeekendSeparator,
-        'clickable': getMemberDay(member, day.date)?.final_state !== 'weekend' && getMemberDay(member, day.date)?.final_state !== 'holiday'
+        'clickable': getMemberDay(member, day.date)?.final_state !== 'weekend' && getMemberDay(member, day.date)?.final_state !== 'holiday',
+        [getMemberDay(member, day.date) ? getStatusClass(getMemberDay(member, day.date)) : 'unknown']: true
       }"
       @click="getMemberDay(member, day.date) && handleCellClick(member.member_id, day.date, getMemberDay(member, day.date))"
       :title="getMemberDay(member, day.date) ? getTooltip(member.member_name || member.name || `Member ${member.member_id}`, getMemberDay(member, day.date)) : ''"
     >
-      <div
-        class="status-indicator"
-        :class="getMemberDay(member, day.date) ? getStatusClass(getMemberDay(member, day.date)) : 'unknown'"
-      ></div>
     </td>
 
     <td class="summary-cell">
@@ -50,7 +47,7 @@ interface Props {
   handleCellClick: (memberId: any, date: string, memberDay: any) => void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 </script>
 
 <style scoped>

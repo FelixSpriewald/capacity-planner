@@ -79,6 +79,7 @@ export interface MemberAvailability {
   member_name?: string
   name?: string
   allocation: number
+  allocation_percentage?: number
   days: DayAvailability[]
   sum_days?: number
   sum_hours?: number
@@ -97,6 +98,11 @@ export interface AvailabilityResponse {
     total_days: number
     total_hours: number
   }
+  working_days?: number
+  holidays_by_region?: Array<{region: string, count: number}>
+  available_capacity_hours?: number
+  available_capacity_days?: number
+  efficiency_percentage?: number
 }
 
 // UI Types

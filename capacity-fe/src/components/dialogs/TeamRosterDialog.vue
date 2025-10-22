@@ -383,11 +383,7 @@ const updateMember = (member: EnhancedMember) => {
     assignment_to: formatDateForApi(member.assignment_to_date)
   }
 
-  console.log('Updating member with data:', updateData)
-  console.log('Original dates:', {
-    from: member.assignment_from_date,
-    to: member.assignment_to_date
-  })
+  // Update member data
 
   emit('update-member', updateData)
 

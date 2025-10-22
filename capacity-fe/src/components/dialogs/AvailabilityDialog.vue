@@ -32,7 +32,7 @@
       <!-- Main Content -->
       <div v-else class="availability-main">
         <!-- Controls -->
-        <ControlsBar 
+        <ControlsBar
           :member-count="availability.members.length"
           :visible-days-count="visibleDays.length"
           :total-days="availability.sum_days_team || availability.team_summary?.total_days || 0"
@@ -106,6 +106,22 @@ const emit = defineEmits<{
 // State
 // Wochenenden werden automatisch ausgeblendet
 
+// Type-safe day interface
+interface DayWithFlexibleDateField {
+  day?: string
+  date?: string
+  dateString?: string
+  day_date?: string
+  final_state?: string
+  auto_status?: string
+  override_state?: string
+}
+
+// Helper function to get date field safely
+const getDateField = (dayObj: DayWithFlexibleDateField): string | undefined => {
+  return dayObj.day || dayObj.date || dayObj.dateString || dayObj.day_date
+}
+
 // Computed
 const visibleDays = computed(() => {
   if (!props.availability?.members?.length) return []
@@ -115,14 +131,16 @@ const visibleDays = computed(() => {
 
   return firstMember.days
     .filter(day => {
-      const dateField = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+      const dateField = getDateField(day as DayWithFlexibleDateField)
       return dateField && !isWeekend(dateField)
     })
     .map((day, index, filteredDays) => {
-      const dateField = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+      const dateField = getDateField(day as DayWithFlexibleDateField)
+      if (!dateField) return null // Skip invalid dates
+
       const previousDay = index > 0 ? filteredDays[index - 1] : null
-      const previousDateField = previousDay ? ((previousDay as any).day || (previousDay as any).date || (previousDay as any).dateString || (previousDay as any).day_date) : null
-      const showWeekendSeparator = previousDay && hasWeekendBetween(previousDateField, dateField)
+      const previousDateField = previousDay ? getDateField(previousDay as DayWithFlexibleDateField) : null
+      const showWeekendSeparator = previousDay && previousDateField ? hasWeekendBetween(previousDateField, dateField) : null
 
       return {
         date: dateField,
@@ -132,6 +150,7 @@ const visibleDays = computed(() => {
         showWeekendSeparator
       }
     })
+    .filter((day): day is NonNullable<typeof day> => day !== null) // Type guard to filter out nulls
 })
 
 // Utility functions
@@ -145,7 +164,6 @@ const getDayName = (dateString: string) => {
   if (!dateString) return 'N/A'
   const date = new Date(dateString + 'T00:00:00')
   if (isNaN(date.getTime())) {
-    console.log('Invalid date:', dateString)
     return dateString
   }
   return date.toLocaleDateString('de-DE', { weekday: 'short' })
@@ -174,11 +192,11 @@ const hasWeekendBetween = (date1: string, date2: string) => {
   return diffDays > 1
 }
 
-const getMemberDay = (member: { days?: DayAvailability[] }, date: string) => {
-  return member.days?.find(d => {
-    const dayDate = (d as any).day || (d as any).date || (d as any).dateString || (d as any).day_date
+const getMemberDay = (member: any, date: string) => {
+  return member.days?.find((d: DayWithFlexibleDateField) => {
+    const dayDate = getDateField(d)
     return dayDate === date
-  }) || null
+  })
 }
 
 const getStatusClass = (day: DayAvailability | null) => {
@@ -219,10 +237,8 @@ const getStatusClass = (day: DayAvailability | null) => {
   }
 }
 
-const getTooltip = (memberName: string, day: DayAvailability | null) => {
-  if (!day) return ''
-
-  const dayDate = (day as any).day || (day as any).date || (day as any).dateString || (day as any).day_date
+const getTooltip = (memberName: string, memberDay: DayWithFlexibleDateField) => {
+  const dayDate = getDateField(memberDay)
   let formattedDate = 'Unbekanntes Datum'
 
   if (dayDate) {
@@ -247,7 +263,7 @@ const getTooltip = (memberName: string, day: DayAvailability | null) => {
     weekend: 'Wochenende'
   }
 
-  const stateLabel = stateLabels[day.final_state] || `Unbekannt (${day.final_state})`
+  const stateLabel = stateLabels[memberDay.final_state || 'unknown'] || `Unbekannt (${memberDay.final_state})`
   const memberDisplayName = memberName || 'Unbekanntes Mitglied'
   return `${memberDisplayName} - ${formattedDate}: ${stateLabel}`
 }
@@ -425,15 +441,16 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 }
 
 .member-cell {
-  min-width: 200px;
-  text-align: left;
-  padding: 1rem 1.25rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  min-width: 220px;
+  text-align: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   position: sticky;
   left: 0;
   z-index: 10;
-  border-right: 2px solid #e2e8f0;
+  border-right: 3px solid #e2e8f0;
   font-weight: 500;
+  box-shadow: 2px 0 4px rgba(0,0,0,0.05);
 }
 
 .summary-cell {
@@ -450,27 +467,51 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 .member-info {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  padding: 0.5rem;
 }
 
 .member-name {
-  font-weight: 600;
-  font-size: 0.9375rem;
+  font-weight: 700;
+  font-size: 1rem;
   color: #1f2937;
-  line-height: 1.2;
+  line-height: 1.3;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.member-name:hover {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .member-allocation {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-  color: #1e40af;
-  padding: 0.25rem 0.75rem;
-  border-radius: 16px;
-  display: inline-block;
-  width: fit-content;
-  border: 1px solid #93c5fd;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-size: 0.875rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+  min-height: 36px;
+}
+
+.member-allocation:hover {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .availability-cell {
@@ -483,6 +524,8 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
   min-height: 60px;
   min-width: 80px;
   vertical-align: middle;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .availability-cell.weekend-separator {
@@ -491,8 +534,8 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 }
 
 .availability-cell:hover {
-  background: rgba(241, 245, 249, 0.8);
-  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .availability-cell.clickable {
@@ -500,8 +543,8 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 }
 
 .availability-cell.clickable:hover {
-  background: rgba(219, 234, 254, 0.6);
-  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2), inset 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 .availability-cell.weekend,
@@ -552,6 +595,42 @@ const handleCellClick = (memberId: number, date: string, day: DayAvailability | 
 .availability-cell:hover .status-dot {
   transform: scale(1.15);
   box-shadow: 0 6px 12px rgba(0,0,0,0.2), 0 6px 12px rgba(0,0,0,0.25);
+}
+
+.availability-cell.available {
+  background: linear-gradient(135deg, #10b981, #059669) !important;
+  color: white;
+  font-weight: 600;
+}
+
+.availability-cell.half {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+  color: white;
+  font-weight: 600;
+}
+
+.availability-cell.unavailable {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: white;
+  font-weight: 600;
+}
+
+.availability-cell.weekend {
+  background: linear-gradient(135deg, #9ca3af, #6b7280) !important;
+  color: white;
+  font-weight: 600;
+}
+
+.availability-cell.holiday {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+  color: white;
+  font-weight: 600;
+}
+
+.availability-cell.unknown {
+  background: linear-gradient(135deg, #d1d5db, #9ca3af) !important;
+  color: #4b5563;
+  font-weight: 600;
 }
 
 .status-indicator.available,

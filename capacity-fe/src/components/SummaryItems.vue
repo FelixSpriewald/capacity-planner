@@ -56,26 +56,40 @@ const teamTotalDays = computed(() => {
   return props.availability.sum_days_team || props.availability.team_summary?.total_days || 0
 })
 
-// Methods
-const getDayTotal = (date: string) => {
-  if (!props.availability?.members) return '0'
+// Optimized: Pre-compute day totals once instead of O(n²) per render
+const dayTotalsMap = computed(() => {
+  if (!props.availability?.members) return new Map<string, string>()
 
-  let total = 0
+  const totalsMap = new Map<string, number>()
+
+  // Build map once with O(n) complexity
   props.availability.members.forEach(member => {
-    // Handle the actual data structure - check multiple possible date fields
-    const day = member.days?.find(d => {
-      const dayDate = d.day || d.date || d.dateString || d.day_date
-      return dayDate === date
+    member.days?.forEach(day => {
+      const dayDate = day.day || day.date || day.dateString || day.day_date
+      if (!dayDate) return
+
+      const allocation = Number(member.allocation) || 1
+      const currentTotal = totalsMap.get(dayDate) || 0
+
+      if (day.final_state === 'available') {
+        totalsMap.set(dayDate, currentTotal + allocation)
+      } else if (day.final_state === 'half') {
+        totalsMap.set(dayDate, currentTotal + allocation * 0.5)
+      }
     })
-    if (day && day.final_state === 'available') {
-      const allocation = Number(member.allocation) || 1
-      total += allocation
-    } else if (day && day.final_state === 'half') {
-      const allocation = Number(member.allocation) || 1
-      total += allocation * 0.5
-    }
   })
 
-  return String(Number(total).toFixed(1))
+  // Convert to formatted strings
+  const formattedMap = new Map<string, string>()
+  totalsMap.forEach((total, date) => {
+    formattedMap.set(date, Number(total).toFixed(1))
+  })
+
+  return formattedMap
+})
+
+// Methods - now O(1) lookup
+const getDayTotal = (date: string) => {
+  return dayTotalsMap.value.get(date) || '0'
 }
 </script>
