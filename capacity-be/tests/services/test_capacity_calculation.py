@@ -87,13 +87,14 @@ class TestCapacityCalculation:
 
         carol_data = next(m for m in availability.members if m.member_id == carol.member_id)
 
-        # 10 Werktage (raw days) - sum_days ist immer raw verfügbare Tage
-        expected_days = 10.0
-        # sum_hours = 10 * 8h * 0.5 employment_ratio * 0.6 allocation = 24.0 Stunden
-        expected_hours = 10.0 * 8.0 * 0.5 * 0.6  # 24.0 Stunden
+        # sum_days = allocation-adjusted days (10 working days * 0.6 allocation = 6.0)
+        expected_days = 6.0  # allocation-adjusted days
+        # sum_hours = sum_days * 8h * employment_ratio * allocation = 6.0 * 8 * 0.5 * 0.6 = 14.4
+        expected_hours = 14.4  # Stunden
 
-        assert carol_data.sum_days == expected_days
-        assert carol_data.sum_hours == expected_hours
+        # Use pytest.approx for floating point comparison
+        assert carol_data.sum_days == pytest.approx(expected_days, rel=1e-9)
+        assert carol_data.sum_hours == pytest.approx(expected_hours, rel=1e-9)
 
     def test_overrides_affect_capacity(self, db_session, sample_members, sample_sprint):
         """Test: Overrides beeinflussen Kapazitätsberechnung"""

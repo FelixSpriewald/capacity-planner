@@ -35,7 +35,12 @@ def get_pto(db: Session, pto_id: int) -> Optional[PTO]:
 
 def create_pto(db: Session, pto: PTOCreate) -> PTO:
     """Neuen PTO-Eintrag erstellen"""
-    db_pto = PTO(**pto.model_dump())
+    pto_data = pto.model_dump()
+    # Map schema field 'description' to model field 'notes'
+    if 'description' in pto_data:
+        pto_data['notes'] = pto_data.pop('description')
+
+    db_pto = PTO(**pto_data)
     db.add(db_pto)
     db.commit()
     db.refresh(db_pto)

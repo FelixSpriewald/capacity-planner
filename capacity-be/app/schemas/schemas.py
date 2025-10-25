@@ -53,6 +53,8 @@ class SprintUpdate(BaseModel):
     end_date: Optional[date] = None
     status: Optional[SprintStatus] = None
 
+    model_config = ConfigDict(use_enum_values=True)
+
 
 class SprintResponse(SprintBase):
     sprint_id: int
@@ -62,7 +64,7 @@ class SprintResponse(SprintBase):
     total_capacity_hours: Optional[float] = None
     working_days: Optional[int] = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
 
 # === Sprint Roster Schemas ===
